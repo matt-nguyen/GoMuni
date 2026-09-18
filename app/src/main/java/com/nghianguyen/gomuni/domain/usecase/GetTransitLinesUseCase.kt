@@ -1,0 +1,18 @@
+package com.nghianguyen.gomuni.domain.usecase
+
+import com.nghianguyen.gomuni.domain.model.TransitLine
+import com.nghianguyen.gomuni.domain.repository.TransitRepository
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+
+class GetTransitLinesUseCase @Inject constructor(
+    private val repository: TransitRepository
+) {
+    operator fun invoke(): Flow<List<TransitLine>> {
+        return repository.getTransitLines()
+    }
+
+    suspend fun refresh(operatorId: String, forceRefresh: Boolean = false) {
+        repository.refreshTransitLines(operatorId, forceRefresh)
+    }
+}

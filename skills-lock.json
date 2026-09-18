@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "mapbox-android-patterns": {
+      "source": "mapbox/mapbox-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mapbox-android-patterns/SKILL.md",
+      "computedHash": "8785c7f24fabc74b6ab706150a5327a92f5edaaae162bfa4eb5f07618a1a3f0e"
+    }
+  }
+}
