@@ -45,7 +45,7 @@ class TransitRepositoryImpl @Inject constructor(
                 // Save the new sync time in DataStore
                 localDataSource.saveLastSyncTime(currentTime)
             } catch (e: Exception) {
-                handleError(e, "Transit lines refresh failed for operator: $operatorId", mapOf("operatorId" to operatorId), lastSync == 0L || isCacheEmpty)
+                handleError(e, "Transit lines refresh failed for operator: $operatorId", mapOf("operatorId" to operatorId), true)
             }
         }
     }
@@ -61,7 +61,7 @@ class TransitRepositoryImpl @Inject constructor(
             localDataSource.deleteStopsForLine(lineId)
             localDataSource.saveStopsForLine(lineId, remoteStops)
         } catch (e: Exception) {
-            handleError(e, "Transit stops refresh failed for line: $lineId", mapOf("operatorId" to operatorId, "lineId" to lineId), false)
+            handleError(e, "Transit stops refresh failed for line: $lineId", mapOf("operatorId" to operatorId, "lineId" to lineId), true)
         }
     }
 
@@ -75,6 +75,7 @@ class TransitRepositoryImpl @Inject constructor(
     }
 
     private fun handleError(e: Exception, logMessage: String, metadata: Map<String, String>, shouldRethrow: Boolean) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
         // Map technical exception to domain error
         val domainError = when (e) {
             is IOException -> TransitError.Network
@@ -94,3 +95,4 @@ class TransitRepositoryImpl @Inject constructor(
         if (shouldRethrow) throw domainError
     }
 }
+
