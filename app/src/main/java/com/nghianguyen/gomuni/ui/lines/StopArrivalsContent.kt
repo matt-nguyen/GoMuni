@@ -13,6 +13,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.nghianguyen.gomuni.R
 import com.nghianguyen.gomuni.domain.model.BusArrival
 import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.domain.model.TransitStop
@@ -31,25 +33,23 @@ fun StopArrivalsContent(
     lines: List<TransitLine>,
     arrivalsLastUpdatedMillis: Long?,
     onRefresh: () -> Unit,
-    onTrackArrival: (BusArrival) -> Unit
+    onTrackArrival: (BusArrival) -> Unit,
+    showEmpty: Boolean = true
 ) {
     val editorialColors = EditorialTheme.colors
-    var lastUpdatedText by remember { mutableStateOf("") }
-
+    var elapsedMinutes by remember(arrivalsLastUpdatedMillis) {
+        mutableLongStateOf(arrivalsLastUpdatedMillis?.let { ((System.currentTimeMillis() - it) / 60000).coerceAtLeast(0) } ?: 0L)
+    }
     LaunchedEffect(arrivalsLastUpdatedMillis) {
-        while (isActive) {
-            if (arrivalsLastUpdatedMillis == null) {
-                lastUpdatedText = ""
-            } else {
-                val elapsedMinutes = (System.currentTimeMillis() - arrivalsLastUpdatedMillis) / 60000
-                lastUpdatedText = if (elapsedMinutes < 1) {
-                    "Updated just now"
-                } else {
-                    "Updated $elapsedMinutes min ago"
-                }
-            }
+        while (isActive && arrivalsLastUpdatedMillis != null) {
+            elapsedMinutes = ((System.currentTimeMillis() - arrivalsLastUpdatedMillis) / 60000).coerceAtLeast(0)
             delay(60000L)
         }
+    }
+    val lastUpdatedText = when {
+        arrivalsLastUpdatedMillis == null -> ""
+        elapsedMinutes < 1 -> stringResource(R.string.updated_now)
+        else -> stringResource(R.string.updated_minutes, elapsedMinutes)
     }
 
     Column(
@@ -70,7 +70,7 @@ fun StopArrivalsContent(
                     color = editorialColors.editorialPaper
                 )
                 Text(
-                    text = "Stop ID: ${stop.id}",
+                    text = stringResource(R.string.stop_id, stop.id),
                     style = EditorialTheme.typography.labelSmall,
                     color = editorialColors.onSurfaceVariant
                 )
@@ -92,7 +92,7 @@ fun StopArrivalsContent(
                 } else {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh",
+                        contentDescription = stringResource(R.string.refresh_arrivals),
                         tint = editorialColors.editorialPaper
                     )
                 }
@@ -102,9 +102,9 @@ fun StopArrivalsContent(
         Spacer(modifier = Modifier.height(EditorialTheme.spacing.spaceMd))
         EditorialDivider()
         
-        if (selectedRouteArrivals.isEmpty() && otherRouteArrivals.isEmpty() && !isLoading) {
+        if (selectedRouteArrivals.isEmpty() && otherRouteArrivals.isEmpty() && !isLoading && showEmpty) {
             Text(
-                text = "NO UPCOMING ARRIVALS FOUND.",
+                text = stringResource(R.string.no_arrivals),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .padding(vertical = 32.dp),

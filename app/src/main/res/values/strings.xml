@@ -1,3 +1,20 @@
 <resources>
     <string name="app_name">Go Muni</string>
+    <string name="muni">Muni</string>
+    <string name="back">Back</string>
+    <string name="my_location">My location</string>
+    <string name="sort_options">Sort options</string>
+    <string name="sort_id">Sort by ID</string>
+    <string name="sort_name">Sort by name</string>
+    <string name="refresh_routes">Refresh routes</string>
+    <string name="refresh_arrivals">Refresh arrivals</string>
+    <string name="retry">Retry</string>
+    <string name="close_arrivals">Close arrivals</string>
+    <string name="no_routes">No routes available.</string>
+    <string name="no_stops">No stops available for this route.</string>
+    <string name="no_arrivals">No upcoming arrivals found.</string>
+    <string name="stop_id">Stop ID: %1$s</string>
+    <string name="updated_now">Updated just now</string>
+    <string name="updated_minutes">Updated %1$d min ago</string>
+    <string name="tracking_permission_denied">Allow notifications to receive bus tracking updates.</string>
 </resources>

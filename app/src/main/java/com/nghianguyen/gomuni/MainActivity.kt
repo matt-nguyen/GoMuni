@@ -22,7 +22,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.nghianguyen.gomuni.tracking.BusTrackingService
 import com.nghianguyen.gomuni.ui.TransitLinesKey
 import com.nghianguyen.gomuni.ui.TransitStopsKey
-import com.nghianguyen.gomuni.ui.lines.TransitLinesScreen
+import com.nghianguyen.gomuni.ui.lines.TransitExplorerRoute
 import com.nghianguyen.gomuni.ui.lines.TransitLinesViewModel
 import com.nghianguyen.gomuni.ui.stops.StopsScreen
 import com.nghianguyen.gomuni.ui.stops.StopsViewModel
@@ -54,28 +54,12 @@ class MainActivity : ComponentActivity() {
                             entry<TransitLinesKey> {
                                 val viewModel: TransitLinesViewModel = hiltViewModel()
                                 transitLinesViewModel = viewModel
-                                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-                                LaunchedEffect(Unit) {
-                                    viewModel.errorEvents.collect { message ->
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                                
                                 LaunchedEffect(intent) {
                                     handleIntent(intent)
                                 }
 
-                                TransitLinesScreen(
-                                    uiState = uiState,
-                                    onRefresh = { viewModel.refreshTransitLines(operatorId = "SF") },
-                                    onLineSelected = { lineId ->
-                                        viewModel.onLineSelected(lineId)
-                                    },
-                                    onSortOptionSelected = { viewModel.onSortOptionSelected(it) },
-                                    onStopSelected = { viewModel.onStopSelected(it) },
-                                    onRefreshArrivals = { viewModel.refreshBusArrivals(it) }
-                                )
+                                TransitExplorerRoute(viewModel)
                             }
                             entry<TransitStopsKey> { key ->
                                 val viewModel: StopsViewModel = hiltViewModel { factory: StopsViewModel.Factory ->

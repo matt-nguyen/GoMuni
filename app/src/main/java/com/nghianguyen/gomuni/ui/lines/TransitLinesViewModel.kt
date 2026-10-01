@@ -6,7 +6,6 @@ import com.nghianguyen.gomuni.domain.model.*
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
 
@@ -14,8 +13,6 @@ import javax.inject.Inject
 class TransitLinesViewModel @Inject constructor(private val repository: TransitRepository) : ViewModel() {
     private val state = MutableStateFlow(TransitExplorerUiState())
     val uiState: StateFlow<TransitExplorerUiState> = state.asStateFlow()
-    private val errors = Channel<String>(Channel.BUFFERED)
-    val errorEvents = errors.receiveAsFlow()
     private var routesJob: Job? = null
     private var stopsJob: Job? = null
     private var arrivalsJob: Job? = null
@@ -35,11 +32,44 @@ class TransitLinesViewModel @Inject constructor(private val repository: TransitR
         }
     }
 
-    fun onSortOptionSelected(option: TransitLineSortOption) {
+    fun onAction(action: TransitExplorerAction) {
+        when (action) {
+            TransitExplorerAction.ClearRoute -> clearRouteSelection()
+            TransitExplorerAction.DismissArrivals -> dismissArrivals()
+            TransitExplorerAction.RefreshRoutes -> refreshTransitLines("SF", force = true)
+            is TransitExplorerAction.SelectRoute -> {
+                if (action.route.operatorId.isNotBlank() && action.route.lineId.isNotBlank()) selectRoute(action.route)
+            }
+            is TransitExplorerAction.ChangeSort -> onSortOptionSelected(action.option)
+            is TransitExplorerAction.SelectStop -> {
+                val stop = state.value.routeStopsState?.stops?.find { it.id == action.stopId }
+                if (stop != null) onStopSelected(stop)
+            }
+            TransitExplorerAction.RetryStops -> refreshSelectedRouteStops()
+            TransitExplorerAction.RefreshArrivals -> {
+                state.value.routeStopsState?.selectedStop?.let { refreshBusArrivals(it.id) }
+            }
+        }
+    }
+
+    fun ensureRoutesLoaded() {
+        if (state.value.routesState.status == LoadStatus.NOT_LOADED) refreshTransitLines("SF")
+    }
+
+    private fun dismissArrivals() {
+        state.update { it.copy(arrivalSheetVisible = false) }
+    }
+
+    private fun refreshSelectedRouteStops() {
+        val route = state.value.routeStopsState?.route ?: return
+        if (state.value.routeStopsState?.isRefreshing != true) selectRoute(route)
+    }
+
+    private fun onSortOptionSelected(option: TransitLineSortOption) {
         state.update { it.copy(routesState = it.routesState.copy(sortOption = option, lines = sort(it.routesState.lines, option))) }
     }
 
-    fun clearRouteSelection() {
+    private fun clearRouteSelection() {
         selectionVersion++
         arrivalVersion++
         stopsJob?.cancel()
@@ -47,15 +77,18 @@ class TransitLinesViewModel @Inject constructor(private val repository: TransitR
         state.update { it.copy(routeStopsState = null, arrivalsState = null, arrivalSheetVisible = false) }
     }
 
-    fun onLineSelected(lineId: String, operatorId: String = "SF") {
-        if (lineId.isBlank()) { clearRouteSelection(); return }
-        selectRoute(RouteKey(operatorId, lineId))
-    }
-
     private fun selectRoute(route: RouteKey, pendingStopId: String? = null) {
-        clearRouteSelection()
+        val existing = state.value.routeStopsState?.takeIf { it.route == route }
+        if (existing == null || pendingStopId != null) clearRouteSelection()
+        else {
+            selectionVersion++
+            stopsJob?.cancel()
+        }
         val version = selectionVersion
-        state.update { it.copy(routeStopsState = RouteStopsUiState(route, status = LoadStatus.LOADING, isRefreshing = true)) }
+        state.update { it.copy(routeStopsState = (existing ?: RouteStopsUiState(route)).copy(
+            status = if (existing?.stops.isNullOrEmpty()) LoadStatus.LOADING else LoadStatus.LOADED,
+            isRefreshing = true, error = null,
+        )) }
         stopsJob = viewModelScope.launch {
             val observation = launch {
                 try {
@@ -110,8 +143,8 @@ class TransitLinesViewModel @Inject constructor(private val repository: TransitR
         }
     }
 
-    fun onStopSelected(stop: TransitStop?) {
-        if (stop == null) { state.update { it.copy(arrivalSheetVisible = false) }; return }
+    private fun onStopSelected(stop: TransitStop?) {
+        if (stop == null) { dismissArrivals(); return }
         val route = state.value.routeStopsState ?: return
         if (stop.lineId != route.route.lineId || route.stops.none { it.id == stop.id }) return
         arrivalVersion++
@@ -126,7 +159,7 @@ class TransitLinesViewModel @Inject constructor(private val repository: TransitR
         if (lineId.isNotBlank() && stopId.isNotBlank()) selectRoute(RouteKey("SF", lineId), stopId)
     }
 
-    fun refreshBusArrivals(stopId: String) {
+    private fun refreshBusArrivals(stopId: String) {
         if (state.value.routeStopsState?.selectedStopId != stopId || arrivalsJob?.isActive == true) return
         val version = ++arrivalVersion
         arrivalsJob = viewModelScope.launch {
@@ -145,7 +178,7 @@ class TransitLinesViewModel @Inject constructor(private val repository: TransitR
         }
     }
 
-    fun refreshTransitLines(operatorId: String, force: Boolean = false) {
+    private fun refreshTransitLines(operatorId: String, force: Boolean = false) {
         if (routesJob?.isActive == true) return
         routesJob = viewModelScope.launch {
             state.update { it.copy(routesState = it.routesState.copy(
@@ -160,7 +193,6 @@ class TransitLinesViewModel @Inject constructor(private val repository: TransitR
                 if (error is CancellationException) throw error
                 val text = message(error)
                 state.update { it.copy(routesState = it.routesState.copy(status = LoadStatus.FAILED, isRefreshing = false, error = text)) }
-                errors.trySend(text)
             }
         }
     }
