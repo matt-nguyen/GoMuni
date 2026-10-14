@@ -5,6 +5,8 @@ junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
 lifecycle = "2.8.7"
+lifecycleNavigation3 = "2.10.0"
+coroutinesTest = "1.10.2"
 activityCompose = "1.13.0"
 kotlin = "2.0.21"
 composeBom = "2024.10.01"
@@ -20,6 +22,8 @@ kotlinxSerialization = "1.7.3"
 mapbox = "11.29.0"
 
 [libraries]
+androidx-lifecycle-viewmodel-navigation3 = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-navigation3", version.ref = "lifecycleNavigation3" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

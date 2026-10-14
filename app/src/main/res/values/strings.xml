@@ -17,4 +17,7 @@
     <string name="updated_now">Updated just now</string>
     <string name="updated_minutes">Updated %1$d min ago</string>
     <string name="tracking_permission_denied">Allow notifications to receive bus tracking updates.</string>
+    <string name="tracking_starting">Starting bus tracking…</string>
+    <string name="tracking_start_failed">Unable to start bus tracking. Please try again.</string>
+    <string name="dismiss">Dismiss</string>
 </resources>

@@ -11,6 +11,12 @@ This is an Android application where users in San Francisco can look up bus stop
     - **Local Data:** Room and DataStore
     - **Remote Data:** Retrofit and OkHttp
 
+## Documentation
+
+Before planning, changing, or debugging code, read `docs/README.md`
+and follow its guidance to select relevant documents.
+Read those documents alongside the affected implementation.
+
 ## UI Design
 
 The application's visual design is defined in `DESIGN.md`.
