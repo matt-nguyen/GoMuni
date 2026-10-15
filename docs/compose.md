@@ -1,89 +1,60 @@
-# Compose implementation conventions
+# Compose
 
-This document owns Compose APIs and mechanics. [UI architecture](ui-architecture.md)
-owns responsibility boundaries and extraction decisions; read both for Compose work.
-[UI state](ui-state.md) owns state/effect delivery and restoration contracts,
-[Navigation](navigation.md) owns scenes and entry lifetimes, and
-[DESIGN.md](../DESIGN.md) owns appearance. Apply these conventions to new work and
-approved refactors; preserve intended behavior during fixes.
+Read [UI architecture](ui-architecture.md) for boundaries alongside it.
+[UI state](ui-state.md) owns delivery/restoration, [Navigation](navigation.md)
+owns entries/scenes, and [DESIGN.md](../DESIGN.md) owns appearance. Apply to new
+work and authorized refactors; preserve behavior during fixes.
 
-## Composable APIs and documentation
+## APIs
 
-- Name composables by their purpose. Use named arguments for destination wiring and
+- Name composables by purpose. Use named arguments for destination wiring and
   calls with multiple callbacks or booleans.
-- Renderable screens/components accept `modifier: Modifier = Modifier`, normally
-  the first optional parameter. Apply it once to the outer layout; use fresh
-  modifiers for children. Effect-only composables do not need a Modifier.
-- Keep inputs narrow and explicit. Use content slots for replaceable presentation
-  rather than speculative flags or dependencies on entire ViewModels.
-- Add concise KDoc to public/internal composable entry points: purpose, `@param`
-  descriptions for every argument, and any non-obvious lifecycle behavior.
-- Use CompositionLocal for scoped, cross-cutting context such as theme or scene
-  coordination. Prefer explicit parameters for ordinary state and callbacks; do
-  not introduce hidden dependency lookup or unrelated mutable shared state.
+- Renderable screens/components take `modifier: Modifier = Modifier`, normally
+  first among optional parameters. Apply it once to the outer layout; use fresh
+  child modifiers. Effect-only composables need no Modifier.
+- Use narrow explicit inputs and content slots; avoid speculative flags or whole
+  ViewModel dependencies. Reserve CompositionLocal for scoped cross-cutting context,
+  not ordinary state/callbacks or hidden dependency lookup.
+- Document public/internal entry points with purpose, every `@param`, and relevant
+  lifecycle behavior.
 
-## Remembered state and restoration mechanics
+## State and effects
 
-- Create route-owned scroll state, snackbar hosts, focus requesters, and sheet
-  controllers with their appropriate remember APIs. Pass what rendering needs
-  into screens; follow [ownership boundaries](ui-architecture.md#route-wrappers-and-state-integration).
-- Key `remember` by inputs that invalidate the object. Recomposition must not
-  recreate controllers or restart work accidentally. Keep identity stable when
-  switching between layout variants.
-- Use `rememberSaveable` and a Saver where needed for small restorable presentation
-  values. Ordinary `remember` does not survive Activity recreation. Choose what
-  to restore using [restoration contracts](ui-state.md#restoration).
-- Keep Compose framework state objects outside immutable ViewModel UI state.
-  Use stable item keys in lazy layouts so item-local state follows item identity.
+- Create route-owned scroll, snackbar, focus, and sheet controllers with appropriate
+  remember APIs. Key remembered objects by invalidating inputs; preserve identity
+  across adaptive branches and use stable keys in lazy lists.
+- Use `rememberSaveable`/Savers for small restorable presentation state. Ordinary
+  `remember` does not survive Activity recreation. Keep Compose state holders out
+  of immutable ViewModel state.
+- Collect rendering via `collectAsStateWithLifecycle`. Collect transient effects in
+  route-owned `LaunchedEffect`/`repeatOnLifecycle`; use entry RESUMED for interactive
+  navigation and enforce host eligibility.
+- Key effects by work identity. Use `rememberUpdatedState` for current callbacks
+  without restarts; pair `DisposableEffect` registration with `onDispose` cleanup.
+- `rememberCoroutineScope` ends with composition, not automatically on lifecycle
+  stops. Register launchers stably and launch from handlers/effects after registration.
+- Never run operations in a composable body or duplicate collectors/permission
+  launches on recomposition. Correlate platform results with their owner; UI effects
+  must not block navigation collection.
 
-## Effects and lifecycle integration
+## Layout and accessibility
 
-- Collect rendering state with `collectAsStateWithLifecycle`. Collect transient
-  effects in `LaunchedEffect` with `repeatOnLifecycle`; use the entry's lifecycle
-  and RESUMED for interactive navigation, following [eligibility rules](navigation.md#viewmodel-navigation-events).
-- Choose effect keys for the work's actual identity. Use `rememberUpdatedState`
-  for callbacks/values that must stay current without restarting the operation.
-- Use `DisposableEffect` to register observers/resources and release them in
-  `onDispose`. Use `rememberCoroutineScope` for route-owned interaction work that
-  should end with composition; it does not itself pause when the lifecycle stops.
-- Do not execute operations in a composable body. Avoid duplicate collectors and
-  permission launches on recomposition. Keep launchers registered at a stable
-  integration boundary and request from handlers/effects after registration.
-- Return platform results to their owner according to the
-  [delivery contract](ui-state.md#state-and-one-time-effects). UI effect execution
-  must not block the navigation collector; see the
-  [route example](viewmodels.md#collecting-effects-in-the-route).
+- Reuse design tokens/components. Respect caller placement and modifier order:
+  padding, clipping, backgrounds, and input affect layout/hit areas.
+- Apply scaffold padding and consume each inset at its declared owner. Avoid doubled
+  padding, obscured content, and keyboard overlap.
+- Select adaptive layouts from window size, posture, and available space. Keep the
+  same inputs/callbacks and hoist controllers above branches when state must survive.
+- Preserve semantics, meaningful descriptions, target sizes, keyboard/focus behavior,
+  text scaling, and screen-reader usability. Decorative content needs no redundant
+  descriptions.
 
-## Layout, modifiers, insets, and accessibility
+## Verification
 
-- Use project tokens/components from DESIGN.md. Respect caller placement through
-  Modifier and review modifier order: padding, clipping, backgrounds, and input
-  modifiers affect layout and hit areas differently.
-- Apply scaffold content padding at the intended boundary. Coordinate consumed
-  insets when scaffolds nest to avoid doubled padding or obscured content. Handle
-  keyboard insets where text input requires it. Follow the declared
-  [inset ownership](ui-architecture.md#scaffolds-bars-and-insets).
-- Choose adaptive layouts from current window size, posture, and available space.
-  Extract variants with the same inputs/callbacks. Hoist remembered controllers
-  above layout branches when their state must survive resizing or folding.
-- Preserve semantics, meaningful content descriptions, interaction target sizes,
-  and keyboard/focus behavior. Avoid redundant descriptions for decorative content.
-  Verify text scaling and screen-reader behavior where interactions change.
-
-## Previews and verification
-
-- Preview screens with representative supplied state, no-op callbacks, the project
-  theme, and preview-owned presentation objects. Do not require DI, ViewModels,
-  network, or live platform effects. Cover meaningful states and supported sizes.
-- Test screen interactions through supplied actions and components through named
-  callbacks. Previews verify rendering, not effect delivery or Android recovery.
-- Check relevant font scales, semantics, keyboard behavior, overlays, resizing,
-  and host/screen insets. Use device/emulator checks for platform behavior and
-  report material unverified cases. Avoid tests of private layout structure.
-
-## Related guidance
-
-- [UI architecture](ui-architecture.md): ownership and composable decomposition.
-- [UI state](ui-state.md): rendering, delivery, and restoration contracts.
-- [ViewModels](viewmodels.md): state production and asynchronous work.
-- [Navigation](navigation.md): entries, scenes, Back, and eligibility.
+Preview meaningful states/sizes with supplied state, theme, no-op callbacks, and
+preview-owned controllers; require no DI, ViewModels, network, or platform effects.
+Test screens through typed actions and components through callbacks, avoiding
+private layout assertions. Check relevant semantics, font scales, keyboard,
+overlays, resizing, and insets. Device checks verify platform behavior; previews
+cannot prove effect delivery or recovery. Report material gaps; follow
+[testing](testing.md).

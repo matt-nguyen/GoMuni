@@ -7,7 +7,8 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SharedTransitMapStateTest {
-    @Test fun routeAndOperatorIdentitySelectIndependentMaps() {
+    @Test
+    fun `route and operator identity select independent maps`() {
         val state = SharedTransitMapState()
         val sf = TransitMapBinding(TransitMapPresentation(routeColor = Color.Red))
         val other = TransitMapBinding(TransitMapPresentation(routeColor = Color.Blue))
@@ -17,7 +18,8 @@ class SharedTransitMapStateTest {
         assertSame(other, state.binding(TransitStopsKey("38", "other")))
     }
 
-    @Test fun outgoingRoutesCannotOverwriteTheActiveRoutesMap() {
+    @Test
+    fun `outgoing routes cannot overwrite the active routes map`() {
         val state = SharedTransitMapState()
         val lines = TransitMapBinding(TransitMapPresentation(routeColor = Color.Red))
         val stops = TransitMapBinding(TransitMapPresentation(routeColor = Color.Blue))
@@ -34,7 +36,8 @@ class SharedTransitMapStateTest {
         assertNull(state.binding(TransitStopsKey("1")))
     }
 
-    @Test fun disposingAnOldCompositionDoesNotRemoveItsReplacement() {
+    @Test
+    fun `disposing an old composition does not remove its replacement`() {
         val state = SharedTransitMapState()
         val old = TransitMapBinding(TransitMapPresentation(routeColor = Color.Red))
         val replacement = TransitMapBinding(TransitMapPresentation(routeColor = Color.Blue))

@@ -13,6 +13,7 @@ necessarily describe current implementation.
 | [UI architecture](ui-architecture.md) | Any Compose change: responsibilities, route/screen/component boundaries, action wiring, dependency placement, or extraction decisions. |
 | [Compose](compose.md) | Any Compose change: composable APIs/KDoc, modifiers, remembered state, effects, lifecycle collection, insets, adaptive layout mechanics, accessibility, or previews. |
 | [ViewModels](viewmodels.md) | ViewModel responsibilities or splitting, typed action handling, initialization, internal patterns, operation concurrency, saved-state recovery, cleanup, or ViewModel tests. |
+| [Testing](testing.md) | Test selection and required coverage, test file organization and naming, fakes versus mocks, coroutine or Compose tests, running tests, or diagnosing flaky tests. |
 
 When adding a document, add a row with a relative link and clear reading triggers.
 

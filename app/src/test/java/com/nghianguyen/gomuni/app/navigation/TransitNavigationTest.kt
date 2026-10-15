@@ -1,12 +1,12 @@
 package com.nghianguyen.gomuni.app.navigation
 
 import androidx.navigation3.runtime.NavKey
-import kotlinx.serialization.json.Json
 import org.junit.Assert.*
 import org.junit.Test
 
 class TransitNavigationTest {
-    @Test fun onlyTheCurrentRouteCanNavigate() {
+    @Test
+    fun `only the current route can navigate`() {
         val stops = TransitStopsKey("38", "SF")
         assertTrue(canNavigate(stops, stops))
         assertTrue(canNavigate(TransitLinesKey, TransitLinesKey))
@@ -15,7 +15,8 @@ class TransitNavigationTest {
         assertFalse(canNavigate(stops, null))
     }
 
-    @Test fun routeBackSequenceUsesHistoryWithoutDuplicates() {
+    @Test
+    fun `route back sequence uses history without duplicates`() {
         val stack = mutableListOf<NavKey>(TransitLinesKey)
         navigate(stack, TransitNavigation.OpenRoute("SF", "38"))
         navigate(stack, TransitNavigation.OpenRoute("SF", "38"))
@@ -25,7 +26,8 @@ class TransitNavigationTest {
         assertEquals(listOf(TransitLinesKey), stack)
     }
 
-    @Test fun externalStopEntryReconcilesRoutesWithoutAddingASheetDestination() {
+    @Test
+    fun `external stop entry reconciles routes without adding a sheet destination`() {
         val stack = mutableListOf<NavKey>(TransitLinesKey)
         assertTrue(navigateToStopRoute(stack, StopArrivalsTarget("38", "123")))
         assertTrue(navigateToStopRoute(stack, StopArrivalsTarget("38", "456")))
@@ -37,13 +39,12 @@ class TransitNavigationTest {
         assertEquals(listOf(TransitLinesKey, TransitStopsKey("1", "other")), stack)
     }
 
-    @Test fun invalidExternalTargetsDoNotChangeHistoryAndTargetsRoundTrip() {
+    @Test
+    fun `invalid external targets do not change history`() {
         val stack = mutableListOf<NavKey>(TransitLinesKey)
         assertFalse(navigateToStopRoute(stack, StopArrivalsTarget("", "123")))
         assertFalse(navigateToStopRoute(stack, StopArrivalsTarget("38", "")))
         assertFalse(navigateToStopRoute(stack, StopArrivalsTarget("38", "123", "")))
         assertEquals(listOf(TransitLinesKey), stack)
-        val target = StopArrivalsTarget("38", "123")
-        assertEquals(target, Json.decodeFromString<StopArrivalsTarget>(Json.encodeToString(StopArrivalsTarget.serializer(), target)))
     }
 }

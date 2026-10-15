@@ -8,43 +8,45 @@ import org.junit.Rule
 import org.junit.Test
 
 class PermissionStateTest {
-    @get:Rule val compose = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
-    @Test fun repeatedDenialsCompleteEvenWhenStatusDoesNotChange() {
+    @Test
+    fun permissionRequest_whenRepeatedlyDenied_completesEachRequest() {
         lateinit var permission: PermissionState
         val results = mutableListOf<PermissionStatus>()
-        compose.setContent {
+        composeRule.setContent {
             // An undeclared permission is denied without opening a system dialog.
             permission = rememberPermissionState("com.nghianguyen.gomuni.TEST_PERMISSION", results::add)
         }
-        compose.runOnIdle { permission.launchPermissionRequest() }
-        compose.waitUntil { results.size == 1 }
-        compose.runOnIdle { permission.launchPermissionRequest() }
-        compose.waitUntil { results.size == 2 }
-        compose.runOnIdle {
+        composeRule.runOnIdle { permission.launchPermissionRequest() }
+        composeRule.waitUntil { results.size == 1 }
+        composeRule.runOnIdle { permission.launchPermissionRequest() }
+        composeRule.waitUntil { results.size == 2 }
+        composeRule.runOnIdle {
             assertEquals(listOf(PermissionStatus.Denied(false), PermissionStatus.Denied(false)), results)
             assertFalse(permission.isRequestInProgress)
         }
     }
 
-    @Test fun alreadyGrantedRequestsCompleteEveryTimeAndUseLatestCallback() {
+    @Test
+    fun permissionRequest_whenAlreadyGranted_completesEachRequestWithLatestCallback() {
         lateinit var permission: PermissionState
         val generation = mutableStateOf(0)
         val results = mutableListOf<Pair<Int, PermissionStatus>>()
-        compose.setContent {
+        composeRule.setContent {
             val current = generation.value
             permission = rememberPermissionState(Manifest.permission.INTERNET) {
                 results.add(current to it)
             }
         }
-        compose.runOnIdle {
+        composeRule.runOnIdle {
             assertEquals(PermissionStatus.Granted, permission.status)
             permission.launchPermissionRequest()
             permission.launchPermissionRequest()
             assertFalse(permission.isRequestInProgress)
             generation.value = 1
         }
-        compose.runOnIdle {
+        composeRule.runOnIdle {
             permission.launchPermissionRequest()
             assertEquals(listOf(0, 0, 1), results.map { it.first })
             assertTrue(results.all { it.second == PermissionStatus.Granted })
