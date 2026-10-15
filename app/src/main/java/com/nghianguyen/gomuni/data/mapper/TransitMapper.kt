@@ -13,7 +13,7 @@ fun TransitLineDto.toDomain(): TransitLine {
     return TransitLine(
         id = id,
         name = name,
-        transportMode = transportMode
+        transportMode = transportMode,
     )
 }
 
@@ -21,7 +21,7 @@ fun TransitLineEntity.toDomain(): TransitLine {
     return TransitLine(
         id = id,
         name = name,
-        transportMode = transportMode
+        transportMode = transportMode,
     )
 }
 
@@ -36,7 +36,7 @@ fun TransitLine.toEntity(): TransitLineEntity {
         publicCode = id,
         siriLineRef = id,
         monitored = true,
-        operatorRef = ""
+        operatorRef = "",
     )
 }
 
@@ -47,7 +47,7 @@ fun ScheduledStopPointDto.toDomain(lineId: String): TransitStop {
         latitude = location.latitude.toDoubleOrNull() ?: 0.0,
         longitude = location.longitude.toDoubleOrNull() ?: 0.0,
         stopType = stopType,
-        lineId = lineId
+        lineId = lineId,
     )
 }
 
@@ -58,7 +58,7 @@ fun TransitStopEntity.toDomain(): TransitStop {
         latitude = latitude,
         longitude = longitude,
         stopType = stopType,
-        lineId = lineId
+        lineId = lineId,
     )
 }
 
@@ -69,7 +69,7 @@ fun TransitStop.toEntity(): TransitStopEntity {
         latitude = latitude,
         longitude = longitude,
         stopType = stopType,
-        lineId = lineId
+        lineId = lineId,
     )
 }
 
@@ -81,6 +81,6 @@ fun MonitoredVehicleJourney.toDomain(): BusArrival {
         aimedArrival = monitoredCall.aimedArrivalTime,
         vehicleRef = vehicleRef,
         latitude = vehicleLocation.latitude.toDoubleOrNull() ?: 0.0,
-        longitude = vehicleLocation.longitude.toDoubleOrNull() ?: 0.0
+        longitude = vehicleLocation.longitude.toDoubleOrNull() ?: 0.0,
     )
 }

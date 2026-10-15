@@ -17,8 +17,7 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TransitLinesViewModelTest {
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @get:Rule val mainDispatcherRule = MainDispatcherRule()
     private val store = ViewModelStore()
     private val repository = FakeTransitRepository()
 
@@ -26,44 +25,50 @@ class TransitLinesViewModelTest {
     fun clearViewModels() {
         store.clear()
     }
+
     private fun <T : ViewModel> retain(model: T): T {
         store.put("${model.javaClass.name}:${System.identityHashCode(model)}", model)
         return model
     }
 
     @Test
-    fun `routes restore sort and filter and refresh without hiding content`() = runTest(mainDispatcherRule.dispatcher) {
-        repository.lines.value = listOf(TransitLine("38", "Geary", "bus"), TransitLine("1", "California", "bus"))
-        val handle = SavedStateHandle(mapOf("sort" to "NAME", "filter" to "Rapid"))
-        val refresh = CompletableDeferred<Unit>()
-        repository.refreshLines = { refresh.await() }
-        val viewModel = retain(TransitLinesViewModel(repository, handle))
-        runCurrent()
-        assertEquals(listOf("1", "38"), viewModel.uiState.value.lines.map { it.id })
-        assertEquals("Rapid", viewModel.uiState.value.filter)
-        assertTrue(viewModel.uiState.value.isRefreshing)
-        viewModel.onAction(TransitLinesAction.Refresh)
-        assertEquals(1, repository.lineRefreshes)
-        refresh.complete(Unit)
-        runCurrent()
-        viewModel.onAction(TransitLinesAction.ChangeSort(TransitLineSortOption.ID))
-        viewModel.onAction(TransitLinesAction.ChangeFilter("All"))
-        assertEquals("ID", handle.get<String>("sort"))
-        assertEquals("All", handle.get<String>("filter"))
-        assertFalse(viewModel.uiState.value.isRefreshing)
-    }
+    fun `routes restore sort and filter and refresh without hiding content`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            repository.lines.value =
+                listOf(TransitLine("38", "Geary", "bus"), TransitLine("1", "California", "bus"))
+            val handle = SavedStateHandle(mapOf("sort" to "NAME", "filter" to "Rapid"))
+            val refresh = CompletableDeferred<Unit>()
+            repository.refreshLines = { refresh.await() }
+            val viewModel = retain(TransitLinesViewModel(repository, handle))
+            runCurrent()
+            assertEquals(listOf("1", "38"), viewModel.uiState.value.lines.map { it.id })
+            assertEquals("Rapid", viewModel.uiState.value.filter)
+            assertTrue(viewModel.uiState.value.isRefreshing)
+            viewModel.onAction(TransitLinesAction.Refresh)
+            assertEquals(1, repository.lineRefreshes)
+            refresh.complete(Unit)
+            runCurrent()
+            viewModel.onAction(TransitLinesAction.ChangeSort(TransitLineSortOption.ID))
+            viewModel.onAction(TransitLinesAction.ChangeFilter("All"))
+            assertEquals("ID", handle.get<String>("sort"))
+            assertEquals("All", handle.get<String>("filter"))
+            assertFalse(viewModel.uiState.value.isRefreshing)
+        }
 
     @Test
-    fun `route selection emits only for known route and does not load stops`() = runTest(mainDispatcherRule.dispatcher) {
-        repository.lines.value = listOf(TransitLine("38", "Geary", "bus"))
-        val viewModel = retain(TransitLinesViewModel(repository, SavedStateHandle()))
-        runCurrent()
-        val events = mutableListOf<TransitNavigation>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.navigationEvents.toList(events) }
-        viewModel.onAction(TransitLinesAction.SelectRoute("missing"))
-        viewModel.onAction(TransitLinesAction.SelectRoute("38"))
-        runCurrent()
-        assertEquals(listOf(TransitNavigation.OpenRoute("SF", "38")), events)
-        assertEquals(0, repository.stopRefreshes)
-    }
+    fun `route selection emits only for known route and does not load stops`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            repository.lines.value = listOf(TransitLine("38", "Geary", "bus"))
+            val viewModel = retain(TransitLinesViewModel(repository, SavedStateHandle()))
+            runCurrent()
+            val events = mutableListOf<TransitNavigation>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.navigationEvents.toList(events)
+            }
+            viewModel.onAction(TransitLinesAction.SelectRoute("missing"))
+            viewModel.onAction(TransitLinesAction.SelectRoute("38"))
+            runCurrent()
+            assertEquals(listOf(TransitNavigation.OpenRoute("SF", "38")), events)
+            assertEquals(0, repository.stopRefreshes)
+        }
 }

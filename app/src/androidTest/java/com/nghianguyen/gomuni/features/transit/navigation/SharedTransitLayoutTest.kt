@@ -29,8 +29,7 @@ import org.junit.Test
 
 /** Verifies SharedTransitLayout retains its real map across navigation, sheets, and resizing. */
 class SharedTransitLayoutTest {
-    @get:Rule
-    val composeRule = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Test
@@ -55,34 +54,49 @@ class SharedTransitLayoutTest {
                         transitionSpec = { transitSlideTransition(forward = true) },
                         popTransitionSpec = { transitSlideTransition(forward = false) },
                         predictivePopTransitionSpec = { transitSlideTransition(forward = false) },
-                        entryProvider = entryProvider<NavKey> {
-                            entry<TransitLinesKey> {
-                                rememberTransitMapBinding(
-                                    sharedMap, it, TransitMapPresentation(routeColor = Color.Red),
-                                    topBar = { TransitLinesTopBar(RoutesUiState(), {}, false, {}) },
-                                )
-                                Text("Lines")
-                            }
-                            entry<TransitStopsKey> { key ->
-                                rememberTransitMapBinding(
-                                    sharedMap, key,
-                                    TransitMapPresentation(
-                                        focusArrivals = sheetOpen.value,
-                                        routeColor = Color.Blue,
-                                    ),
-                                    topBar = { RouteStopsTopBar(RouteStopsUiState(RouteKey(key.operatorId, key.lineId)), {}) },
-                                )
-                                Column {
-                                    Text("Stops")
-                                    if (sheetOpen.value) {
-                                        StopArrivalsSheet(rememberModalBottomSheetState(), { sheetOpen.value = false }) {
-                                            Text("Arrivals")
+                        entryProvider =
+                            entryProvider<NavKey> {
+                                entry<TransitLinesKey> {
+                                    rememberTransitMapBinding(
+                                        sharedMap,
+                                        it,
+                                        TransitMapPresentation(routeColor = Color.Red),
+                                        topBar = {
+                                            TransitLinesTopBar(RoutesUiState(), {}, false, {})
+                                        },
+                                    )
+                                    Text("Lines")
+                                }
+                                entry<TransitStopsKey> { key ->
+                                    rememberTransitMapBinding(
+                                        sharedMap,
+                                        key,
+                                        TransitMapPresentation(
+                                            focusArrivals = sheetOpen.value,
+                                            routeColor = Color.Blue,
+                                        ),
+                                        topBar = {
+                                            RouteStopsTopBar(
+                                                RouteStopsUiState(
+                                                    RouteKey(key.operatorId, key.lineId),
+                                                ),
+                                                {},
+                                            )
+                                        },
+                                    )
+                                    Column {
+                                        Text("Stops")
+                                        if (sheetOpen.value) {
+                                            StopArrivalsSheet(
+                                                rememberModalBottomSheetState(),
+                                                { sheetOpen.value = false },
+                                            ) {
+                                                Text("Arrivals")
+                                            }
                                         }
                                     }
                                 }
-                            }
-
-                        },
+                            },
                     )
                 }
             }
@@ -150,9 +164,10 @@ class SharedTransitLayoutTest {
 
     private fun View.visibleBounds(): Rect = Rect().also { assertTrue(getGlobalVisibleRect(it)) }
 
-    private fun View.mapViews(): List<MapView> = when (this) {
-        is MapView -> listOf(this)
-        is ViewGroup -> (0 until childCount).flatMap { getChildAt(it).mapViews() }
-        else -> emptyList()
-    }
+    private fun View.mapViews(): List<MapView> =
+        when (this) {
+            is MapView -> listOf(this)
+            is ViewGroup -> (0 until childCount).flatMap { getChildAt(it).mapViews() }
+            else -> emptyList()
+        }
 }

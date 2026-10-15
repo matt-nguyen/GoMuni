@@ -12,20 +12,21 @@ import com.nghianguyen.gomuni.MainActivity
 import com.nghianguyen.gomuni.R
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.*
 import java.time.Instant
 import javax.inject.Inject
 import kotlin.math.max
+import kotlinx.coroutines.*
 
 @AndroidEntryPoint
 class BusTrackingService : Service() {
 
-    @Inject
-    lateinit var repository: TransitRepository
+    @Inject lateinit var repository: TransitRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var refreshJob: Job? = null
-    private val trackingPreferences by lazy { getSharedPreferences("bus_tracking_requests", Context.MODE_PRIVATE) }
+    private val trackingPreferences by lazy {
+        getSharedPreferences("bus_tracking_requests", Context.MODE_PRIVATE)
+    }
 
     private var stopId: String = ""
     private var stopName: String = ""
@@ -36,7 +37,7 @@ class BusTrackingService : Service() {
     companion object {
         const val CHANNEL_ID = "bus_tracking_channel"
         const val NOTIFICATION_ID = 1001
-        
+
         const val ACTION_START = "ACTION_START"
         const val ACTION_REFRESH = "ACTION_REFRESH"
         const val ACTION_STOP = "ACTION_STOP"
@@ -91,7 +92,8 @@ class BusTrackingService : Service() {
     }
 
     private fun persistSession() {
-        trackingPreferences.edit()
+        trackingPreferences
+            .edit()
             .putBoolean(SESSION_ACTIVE, true)
             .putString(EXTRA_STOP_ID, stopId)
             .putString(EXTRA_STOP_NAME, stopName)
@@ -111,13 +113,13 @@ class BusTrackingService : Service() {
 
     private fun startForegroundService() {
         val notification = createNotification("Fetching arrival time...")
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceCompat.startForeground(
                 this,
                 NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
@@ -129,10 +131,15 @@ class BusTrackingService : Service() {
         refreshJob = serviceScope.launch {
             try {
                 val arrivals = repository.getBusArrivals(stopId)
-                val targetArrival = arrivals.find { it.lineRef == lineRef && (vehicleRef == null || it.vehicleRef == vehicleRef) }
-                
+                val targetArrival = arrivals.find {
+                    it.lineRef == lineRef && (vehicleRef == null || it.vehicleRef == vehicleRef)
+                }
+
                 if (targetArrival != null) {
-                    val timeStr = formatArrivalTime(targetArrival.expectedArrival ?: targetArrival.aimedArrival ?: "")
+                    val timeStr =
+                        formatArrivalTime(
+                            targetArrival.expectedArrival ?: targetArrival.aimedArrival ?: "",
+                        )
                     updateNotification("$timeStr MIN")
                 } else {
                     updateNotification("Arrival data unavailable")
@@ -145,32 +152,39 @@ class BusTrackingService : Service() {
 
     private fun updateNotification(content: String) {
         val notification = createNotification(content)
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun createNotification(content: String): Notification {
-        val mainIntent = Intent(this, MainActivity::class.java).apply {
-            putExtra(EXTRA_STOP_ID, stopId)
-            putExtra(EXTRA_LINE_REF, lineRef)
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val mainIntent =
+            Intent(this, MainActivity::class.java).apply {
+                putExtra(EXTRA_STOP_ID, stopId)
+                putExtra(EXTRA_LINE_REF, lineRef)
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+        val pendingIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                mainIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
 
-        val refreshIntent = Intent(this, TrackingActionReceiver::class.java).apply {
-            action = ACTION_REFRESH
-        }
-        val refreshPendingIntent = PendingIntent.getBroadcast(this, 1, refreshIntent, PendingIntent.FLAG_IMMUTABLE)
+        val refreshIntent =
+            Intent(this, TrackingActionReceiver::class.java).apply {
+                action = ACTION_REFRESH
+            }
+        val refreshPendingIntent =
+            PendingIntent.getBroadcast(this, 1, refreshIntent, PendingIntent.FLAG_IMMUTABLE)
 
-        val stopIntent = Intent(this, TrackingActionReceiver::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getBroadcast(this, 2, stopIntent, PendingIntent.FLAG_IMMUTABLE)
+        val stopIntent =
+            Intent(this, TrackingActionReceiver::class.java).apply {
+                action = ACTION_STOP
+            }
+        val stopPendingIntent =
+            PendingIntent.getBroadcast(this, 2, stopIntent, PendingIntent.FLAG_IMMUTABLE)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("$lineRef $lineName")
@@ -185,13 +199,15 @@ class BusTrackingService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Bus Tracking",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Shows real-time bus arrival information"
-            }
+            val channel =
+                NotificationChannel(
+                        CHANNEL_ID,
+                        "Bus Tracking",
+                        NotificationManager.IMPORTANCE_LOW,
+                    )
+                    .apply {
+                        description = "Shows real-time bus arrival information"
+                    }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }

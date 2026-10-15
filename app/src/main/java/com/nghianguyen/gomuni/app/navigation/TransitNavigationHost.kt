@@ -121,31 +121,36 @@ private fun TransitNavDisplay(
         transitionSpec = { transitSlideTransition(forward = true) },
         popTransitionSpec = { transitSlideTransition(forward = false) },
         predictivePopTransitionSpec = { transitSlideTransition(forward = false) },
-        entryDecorators = listOf(
-            rememberSaveableStateHolderNavEntryDecorator(),
-            rememberViewModelStoreNavEntryDecorator(),
-        ),
-        entryProvider = entryProvider<NavKey> {
-            entry<TransitLinesKey> {
-                TransitLinesRoute(
-                    sharedMap = sharedMap,
-                    onNavigate = { onNavigate(TransitLinesKey, it) },
-                )
-            }
-            entry<TransitStopsKey> { key ->
-                RouteStopsRoute(
-                    key = key,
-                    sharedMap = sharedMap,
-                    onNavigate = { onNavigate(key, it) },
-                    isActive = backStack.lastOrNull() == key,
-                    pendingStopNavigation = pendingStopNavigation?.takeIf {
-                        backStack.lastOrNull() == key && it.lineId == key.lineId && it.operatorId == key.operatorId
-                    },
-                    onStopNavigationHandled = onStopNavigationHandled,
-                    trackingEnabled = trackingEnabled,
-                    onTrackingRequest = onStartTracking,
-                )
-            }
-        },
+        entryDecorators =
+            listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator(),
+            ),
+        entryProvider =
+            entryProvider<NavKey> {
+                entry<TransitLinesKey> {
+                    TransitLinesRoute(
+                        sharedMap = sharedMap,
+                        onNavigate = { onNavigate(TransitLinesKey, it) },
+                    )
+                }
+                entry<TransitStopsKey> { key ->
+                    RouteStopsRoute(
+                        key = key,
+                        sharedMap = sharedMap,
+                        onNavigate = { onNavigate(key, it) },
+                        isActive = backStack.lastOrNull() == key,
+                        pendingStopNavigation =
+                            pendingStopNavigation?.takeIf {
+                                backStack.lastOrNull() == key &&
+                                    it.lineId == key.lineId &&
+                                    it.operatorId == key.operatorId
+                            },
+                        onStopNavigationHandled = onStopNavigationHandled,
+                        trackingEnabled = trackingEnabled,
+                        onTrackingRequest = onStartTracking,
+                    )
+                }
+            },
     )
 }

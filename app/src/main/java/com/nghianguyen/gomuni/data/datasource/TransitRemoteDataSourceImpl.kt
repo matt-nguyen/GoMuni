@@ -7,8 +7,10 @@ import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.domain.model.TransitStop
 import javax.inject.Inject
 
-class TransitRemoteDataSourceImpl @Inject constructor(
-    private val apiService: TransitApiService
+class TransitRemoteDataSourceImpl
+@Inject
+constructor(
+    private val apiService: TransitApiService,
 ) : TransitRemoteDataSource {
     override suspend fun getTransitLines(operatorId: String): List<TransitLine> {
         return apiService.getTransitLines(operatorId).map { it.toDomain() }
@@ -20,9 +22,10 @@ class TransitRemoteDataSourceImpl @Inject constructor(
     }
 
     override suspend fun getBusArrivals(stopId: String): List<BusArrival> {
-        val response = apiService.getStopMonitoring(
-            stopCode = stopId
-        )
+        val response =
+            apiService.getStopMonitoring(
+                stopCode = stopId,
+            )
         return response.serviceDelivery.stopMonitoringDelivery.monitoredStopVisit?.map {
             it.monitoredVehicleJourney.toDomain()
         } ?: emptyList()

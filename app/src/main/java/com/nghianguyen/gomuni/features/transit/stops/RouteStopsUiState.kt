@@ -15,5 +15,6 @@ data class RouteStopsUiState(
     val error: String? = null,
     val lines: List<TransitLine> = emptyList(),
 ) {
-    val selectedStop: TransitStop? get() = stops.find { it.id == selectedStopId }
+    val selectedStop: TransitStop?
+        get() = stops.find { it.id == selectedStopId }
 }

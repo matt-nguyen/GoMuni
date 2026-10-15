@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** In-memory startup only. A new process abandons unfinished startup. */
@@ -82,5 +82,4 @@ class TrackingViewModel @Inject constructor() : ViewModel() {
     private fun dismissFailure() {
         state.value = state.value.copy(error = null)
     }
-
 }

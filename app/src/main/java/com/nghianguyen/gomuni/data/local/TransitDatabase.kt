@@ -10,9 +10,10 @@ import com.nghianguyen.gomuni.data.local.entity.TransitStopEntity
 @Database(
     entities = [TransitLineEntity::class, TransitStopEntity::class],
     version = 2,
-    exportSchema = false
+    exportSchema = false,
 )
 abstract class TransitDatabase : RoomDatabase() {
     abstract fun transitLineDao(): TransitLineDao
+
     abstract fun transitStopDao(): TransitStopDao
 }

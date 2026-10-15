@@ -21,24 +21,24 @@ abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindTransitRemoteDataSource(
-        transitRemoteDataSourceImpl: TransitRemoteDataSourceImpl
+        transitRemoteDataSourceImpl: TransitRemoteDataSourceImpl,
     ): TransitRemoteDataSource
 
     @Binds
     @Singleton
     abstract fun bindTransitLocalDataSource(
-        transitLocalDataSourceImpl: TransitLocalDataSourceImpl
+        transitLocalDataSourceImpl: TransitLocalDataSourceImpl,
     ): TransitLocalDataSource
 
     @Binds
     @Singleton
     abstract fun bindTransitRepository(
-        transitRepositoryImpl: TransitRepositoryImpl
+        transitRepositoryImpl: TransitRepositoryImpl,
     ): TransitRepository
 
     @Binds
     @Singleton
     abstract fun bindErrorLogger(
-        analyticsErrorLogger: AnalyticsErrorLogger
+        analyticsErrorLogger: AnalyticsErrorLogger,
     ): ErrorLogger
 }

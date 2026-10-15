@@ -7,7 +7,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.Flow
 
 @Composable
-internal fun CollectNavigation(events: Flow<TransitNavigation>, onNavigate: (TransitNavigation) -> Unit) {
+internal fun CollectNavigation(
+    events: Flow<TransitNavigation>,
+    onNavigate: (TransitNavigation) -> Unit,
+) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val currentNavigate by rememberUpdatedState(onNavigate)
     LaunchedEffect(events, lifecycle) {

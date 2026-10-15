@@ -17,36 +17,37 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    onPrimary = OnPrimary,
-    primaryContainer = PrimaryContainer,
-    onPrimaryContainer = OnPrimaryContainer,
-    inversePrimary = InversePrimary,
-    secondary = Secondary,
-    onSecondary = OnSecondary,
-    secondaryContainer = SecondaryContainer,
-    onSecondaryContainer = OnSecondaryContainer,
-    tertiary = Tertiary,
-    onTertiary = OnTertiary,
-    tertiaryContainer = TertiaryContainer,
-    onTertiaryContainer = OnTertiaryContainer,
-    background = Background,
-    onBackground = OnBackground,
-    surface = Surface,
-    onSurface = OnSurface,
-    surfaceVariant = SurfaceVariant,
-    onSurfaceVariant = OnSurfaceVariant,
-    outline = Outline,
-    outlineVariant = OutlineVariant,
-    error = Error,
-    onError = OnError,
-    errorContainer = ErrorContainer,
-    onErrorContainer = OnErrorContainer,
-    inverseSurface = InverseSurface,
-    inverseOnSurface = InverseOnSurface,
-    surfaceTint = SurfaceTint
-)
+private val DarkColorScheme =
+    darkColorScheme(
+        primary = Primary,
+        onPrimary = OnPrimary,
+        primaryContainer = PrimaryContainer,
+        onPrimaryContainer = OnPrimaryContainer,
+        inversePrimary = InversePrimary,
+        secondary = Secondary,
+        onSecondary = OnSecondary,
+        secondaryContainer = SecondaryContainer,
+        onSecondaryContainer = OnSecondaryContainer,
+        tertiary = Tertiary,
+        onTertiary = OnTertiary,
+        tertiaryContainer = TertiaryContainer,
+        onTertiaryContainer = OnTertiaryContainer,
+        background = Background,
+        onBackground = OnBackground,
+        surface = Surface,
+        onSurface = OnSurface,
+        surfaceVariant = SurfaceVariant,
+        onSurfaceVariant = OnSurfaceVariant,
+        outline = Outline,
+        outlineVariant = OutlineVariant,
+        error = Error,
+        onError = OnError,
+        errorContainer = ErrorContainer,
+        onErrorContainer = OnErrorContainer,
+        inverseSurface = InverseSurface,
+        inverseOnSurface = InverseOnSurface,
+        surfaceTint = SurfaceTint,
+    )
 
 data class EditorialColors(
     val editorialPaper: Color = EditorialPaper,
@@ -72,7 +73,7 @@ data class EditorialColors(
     val surfaceContainerLow: Color = SurfaceContainerLow,
     val surfaceContainer: Color = SurfaceContainer,
     val surfaceContainerHigh: Color = SurfaceContainerHigh,
-    val surfaceContainerHighest: Color = SurfaceContainerHighest
+    val surfaceContainerHighest: Color = SurfaceContainerHighest,
 )
 
 data class EditorialSpacing(
@@ -86,7 +87,7 @@ data class EditorialSpacing(
     val space2xl: Dp = 48.dp,
     val gutterMobile: Dp = 16.dp,
     val gutterTablet: Dp = 24.dp,
-    val columnGap: Dp = 12.dp
+    val columnGap: Dp = 12.dp,
 )
 
 val LocalEditorialColors = staticCompositionLocalOf { EditorialColors() }
@@ -94,26 +95,20 @@ val LocalEditorialSpacing = staticCompositionLocalOf { EditorialSpacing() }
 
 object EditorialTheme {
     val colors: EditorialColors
-        @Composable
-        @ReadOnlyComposable
-        get() = LocalEditorialColors.current
+        @Composable @ReadOnlyComposable get() = LocalEditorialColors.current
 
     val spacing: EditorialSpacing
-        @Composable
-        @ReadOnlyComposable
-        get() = LocalEditorialSpacing.current
+        @Composable @ReadOnlyComposable get() = LocalEditorialSpacing.current
 
     val typography: Typography
-        @Composable
-        @ReadOnlyComposable
-        get() = MaterialTheme.typography
+        @Composable @ReadOnlyComposable get() = MaterialTheme.typography
 }
 
 @Composable
 fun GoMuniTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     // Forcing dark theme as per DESIGN.md "uncompromising dark-mode default"
     val colorScheme = DarkColorScheme
@@ -129,13 +124,13 @@ fun GoMuniTheme(
 
     CompositionLocalProvider(
         LocalEditorialColors provides EditorialColors(),
-        LocalEditorialSpacing provides EditorialSpacing()
+        LocalEditorialSpacing provides EditorialSpacing(),
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
             shapes = Shapes,
-            content = content
+            content = content,
         )
     }
 }

@@ -16,14 +16,18 @@ class PermissionStateTest {
         val results = mutableListOf<PermissionStatus>()
         composeRule.setContent {
             // An undeclared permission is denied without opening a system dialog.
-            permission = rememberPermissionState("com.nghianguyen.gomuni.TEST_PERMISSION", results::add)
+            permission =
+                rememberPermissionState("com.nghianguyen.gomuni.TEST_PERMISSION", results::add)
         }
         composeRule.runOnIdle { permission.launchPermissionRequest() }
         composeRule.waitUntil { results.size == 1 }
         composeRule.runOnIdle { permission.launchPermissionRequest() }
         composeRule.waitUntil { results.size == 2 }
         composeRule.runOnIdle {
-            assertEquals(listOf(PermissionStatus.Denied(false), PermissionStatus.Denied(false)), results)
+            assertEquals(
+                listOf(PermissionStatus.Denied(false), PermissionStatus.Denied(false)),
+                results,
+            )
             assertFalse(permission.isRequestInProgress)
         }
     }
@@ -35,9 +39,10 @@ class PermissionStateTest {
         val results = mutableListOf<Pair<Int, PermissionStatus>>()
         composeRule.setContent {
             val current = generation.value
-            permission = rememberPermissionState(Manifest.permission.INTERNET) {
-                results.add(current to it)
-            }
+            permission =
+                rememberPermissionState(Manifest.permission.INTERNET) {
+                    results.add(current to it)
+                }
         }
         composeRule.runOnIdle {
             assertEquals(PermissionStatus.Granted, permission.status)

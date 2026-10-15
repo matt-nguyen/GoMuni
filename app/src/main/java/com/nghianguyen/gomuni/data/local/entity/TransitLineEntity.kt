@@ -13,5 +13,5 @@ data class TransitLineEntity(
     val publicCode: String,
     val siriLineRef: String,
     val monitored: Boolean,
-    val operatorRef: String
+    val operatorRef: String,
 )

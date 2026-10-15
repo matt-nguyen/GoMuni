@@ -30,6 +30,7 @@ import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 /**
  * Remembers the transit viewport and applies destination-driven camera changes.
+ *
  * @param data Visible stops and vehicles used for fitting the camera.
  * @param routeId Selected route, or null for the San Francisco overview.
  * @param selectedStopId Stop to focus when arrivals are visible.
@@ -45,21 +46,31 @@ internal fun rememberTransitMapViewport(
     cameraKey: Any? = routeId,
 ): com.mapbox.maps.extension.compose.animation.viewport.MapViewportState {
     val viewport = rememberMapViewportState {
-        setCameraOptions { center(Point.fromLngLat(-122.4194, 37.7749)); zoom(11.0) }
+        setCameraOptions {
+            center(Point.fromLngLat(-122.4194, 37.7749))
+            zoom(11.0)
+        }
     }
     val focusedStop = if (focusArrivals) data.stops.find { it.id == selectedStopId } else null
-    val bounds = if (focusedStop != null) {
-        listOf(Point.fromLngLat(focusedStop.longitude, focusedStop.latitude)) +
-            data.vehicles.map { Point.fromLngLat(it.longitude, it.latitude) }
-    } else data.stops.map { Point.fromLngLat(it.longitude, it.latitude) }
+    val bounds =
+        if (focusedStop != null) {
+            listOf(Point.fromLngLat(focusedStop.longitude, focusedStop.latitude)) +
+                data.vehicles.map { Point.fromLngLat(it.longitude, it.latitude) }
+        } else data.stops.map { Point.fromLngLat(it.longitude, it.latitude) }
     // Fit on selection/visibility changes or the first available route snapshot only.
     // Prediction updates and manual gestures retain the current camera, including follow mode.
     LaunchedEffect(cameraKey, focusedStop?.id, focusArrivals, bounds.isNotEmpty()) {
         if (routeId == null) {
-            viewport.setCameraOptions { center(Point.fromLngLat(-122.4194, 37.7749)); zoom(11.0) }
+            viewport.setCameraOptions {
+                center(Point.fromLngLat(-122.4194, 37.7749))
+                zoom(11.0)
+            }
         } else if (bounds.isNotEmpty()) {
             viewport.flyTo(
-                viewport.cameraForCoordinates(bounds, coordinatesPadding = EdgeInsets(100.0, 100.0, 100.0, 100.0)),
+                viewport.cameraForCoordinates(
+                    bounds,
+                    coordinatesPadding = EdgeInsets(100.0, 100.0, 100.0, 100.0),
+                ),
                 MapAnimationOptions.mapAnimationOptions { duration(1000) },
             )
         }
@@ -80,33 +91,47 @@ internal fun TransitMapRoute(
     modifier: Modifier,
 ) {
     val colors = EditorialTheme.colors
-    val stopIcon = rememberIconImage(key = "stop-marker", painter = painterResource(R.drawable.baseline_adjust_24))
-    val busIcon = rememberIconImage(key = "bus-marker", painter = painterResource(R.drawable.bus_icon))
+    val stopIcon =
+        rememberIconImage(
+            key = "stop-marker",
+            painter = painterResource(R.drawable.baseline_adjust_24),
+        )
+    val busIcon =
+        rememberIconImage(key = "bus-marker", painter = painterResource(R.drawable.bus_icon))
     Box(modifier) {
         MapboxMap(
             modifier = Modifier.fillMaxSize(),
             mapViewportState = viewport,
             style = {
-                MapboxStandardStyle(standardStyleState = rememberStandardStyleState {
-                    configurationsState.apply {
-                        lightPreset = LightPresetValue.NIGHT
-                        showPointOfInterestLabels = BooleanValue(false)
-                    }
-                })
+                MapboxStandardStyle(
+                    standardStyleState =
+                        rememberStandardStyleState {
+                            configurationsState.apply {
+                                lightPreset = LightPresetValue.NIGHT
+                                showPointOfInterestLabels = BooleanValue(false)
+                            }
+                        },
+                )
             },
         ) {
             MapEffect(locationPermissionGranted) { mapView ->
                 mapView.location.updateSettings {
                     enabled = locationPermissionGranted
                     pulsingEnabled = true
-                    locationPuck = LocationPuck2D(topImage = ImageHolder.from(R.drawable.current_location_icon))
+                    locationPuck =
+                        LocationPuck2D(
+                            topImage = ImageHolder.from(R.drawable.current_location_icon),
+                        )
                 }
             }
             data.stops.forEach { stop ->
                 key(stop.id) {
                     val selected = stop.id == selectedStopId
                     PointAnnotation(point = Point.fromLngLat(stop.longitude, stop.latitude)) {
-                        interactionsState.onClicked { onStopSelected(stop); true }
+                        interactionsState.onClicked {
+                            onStopSelected(stop)
+                            true
+                        }
                         iconImage = stopIcon
                         iconColor = if (selected) colors.signalChartreuse else routeColor
                         iconOpacity = if (focusArrivals && !selected) 0.3 else 1.0
@@ -122,11 +147,17 @@ internal fun TransitMapRoute(
                 }
             }
         }
-        if (locationPermissionGranted) EditorialFAB(
-            onClick = onFollowLocation,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(EditorialTheme.spacing.spaceMd),
-        ) {
-            Icon(painterResource(R.drawable.current_location_icon), stringResource(R.string.my_location), tint = colors.editorialBlack)
-        }
+        if (locationPermissionGranted)
+            EditorialFAB(
+                onClick = onFollowLocation,
+                modifier =
+                    Modifier.align(Alignment.BottomEnd).padding(EditorialTheme.spacing.spaceMd),
+            ) {
+                Icon(
+                    painterResource(R.drawable.current_location_icon),
+                    stringResource(R.string.my_location),
+                    tint = colors.editorialBlack,
+                )
+            }
     }
 }

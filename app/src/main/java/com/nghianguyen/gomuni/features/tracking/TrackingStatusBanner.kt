@@ -22,13 +22,24 @@ fun TrackingStatusBanner(state: TrackingUiState, onDismiss: () -> Unit) {
     if (!state.isStarting && error == null) return
     Column(Modifier.fillMaxWidth().padding(EditorialTheme.spacing.spaceMd)) {
         if (state.isStarting) {
-            LinearProgressIndicator(Modifier.fillMaxWidth(), color = EditorialTheme.colors.signalChartreuse)
-            Text(stringResource(R.string.tracking_starting), color = EditorialTheme.colors.editorialPaper)
+            LinearProgressIndicator(
+                Modifier.fillMaxWidth(),
+                color = EditorialTheme.colors.signalChartreuse,
+            )
+            Text(
+                stringResource(R.string.tracking_starting),
+                color = EditorialTheme.colors.editorialPaper,
+            )
         } else if (error != null) {
-            Text(stringResource(when (error.reason) {
-                TrackingFailure.PERMISSION_DENIED -> R.string.tracking_permission_denied
-                TrackingFailure.STARTUP_FAILED -> R.string.tracking_start_failed
-            }), color = EditorialTheme.colors.electricAlert)
+            Text(
+                stringResource(
+                    when (error.reason) {
+                        TrackingFailure.PERMISSION_DENIED -> R.string.tracking_permission_denied
+                        TrackingFailure.STARTUP_FAILED -> R.string.tracking_start_failed
+                    },
+                ),
+                color = EditorialTheme.colors.electricAlert,
+            )
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) }
         }
     }

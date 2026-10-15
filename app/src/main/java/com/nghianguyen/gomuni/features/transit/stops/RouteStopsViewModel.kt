@@ -3,10 +3,10 @@ package com.nghianguyen.gomuni.features.transit.stops
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.nghianguyen.gomuni.domain.model.TransitStop
-import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import com.nghianguyen.gomuni.app.navigation.NavigationEvents
 import com.nghianguyen.gomuni.app.navigation.TransitNavigation
+import com.nghianguyen.gomuni.domain.model.TransitStop
+import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.model.RouteKey
 import com.nghianguyen.gomuni.features.transit.model.transitFailureMessage
@@ -18,15 +18,26 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 @HiltViewModel(assistedFactory = RouteStopsViewModel.Factory::class)
-class RouteStopsViewModel @AssistedInject constructor(
+class RouteStopsViewModel
+@AssistedInject
+constructor(
     private val repository: TransitRepository,
     private val savedStateHandle: SavedStateHandle,
     @Assisted val route: RouteKey,
 ) : ViewModel() {
-    @AssistedFactory interface Factory { fun create(route: RouteKey): RouteStopsViewModel }
-    private val state = MutableStateFlow(RouteStopsUiState(route,
-        selectedStopId = savedStateHandle["selected_stop"],
-        arrivalsStopId = savedStateHandle["arrivals_stop"]))
+    @AssistedFactory
+    interface Factory {
+        fun create(route: RouteKey): RouteStopsViewModel
+    }
+
+    private val state =
+        MutableStateFlow(
+            RouteStopsUiState(
+                route,
+                selectedStopId = savedStateHandle["selected_stop"],
+                arrivalsStopId = savedStateHandle["arrivals_stop"],
+            ),
+        )
     val uiState = state.asStateFlow()
     private val navigation = NavigationEvents()
     val navigationEvents = navigation.flow
@@ -35,11 +46,15 @@ class RouteStopsViewModel @AssistedInject constructor(
 
     init {
         if (route.lineId.isBlank() || route.operatorId.isBlank()) {
-            state.update { it.copy(status = LoadStatus.FAILED, error = "The requested route is unavailable.") }
+            state.update {
+                it.copy(status = LoadStatus.FAILED, error = "The requested route is unavailable.")
+            }
         } else {
             viewModelScope.launch {
                 try {
-                    repository.getTransitLines().collect { lines -> state.update { it.copy(lines = lines) } }
+                    repository.getTransitLines().collect { lines ->
+                        state.update { it.copy(lines = lines) }
+                    }
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
                     // Metadata can be unavailable without hiding usable stops.
@@ -69,8 +84,7 @@ class RouteStopsViewModel @AssistedInject constructor(
 
     private fun goBack() {
         val openStop = state.value.arrivalsStopId
-        if (openStop != null) dismissArrivals(openStop)
-        else navigation.emit(TransitNavigation.Back)
+        if (openStop != null) dismissArrivals(openStop) else navigation.emit(TransitNavigation.Back)
     }
 
     private fun selectStop(stopId: String) {
@@ -91,10 +105,16 @@ class RouteStopsViewModel @AssistedInject constructor(
     }
 
     private fun refresh() {
-        if (route.lineId.isBlank() || route.operatorId.isBlank() || refreshJob?.isActive == true) return
+        if (route.lineId.isBlank() || route.operatorId.isBlank() || refreshJob?.isActive == true)
+            return
         val version = ++generation
-        state.update { it.copy(status = if (it.stops.isEmpty()) LoadStatus.LOADING else LoadStatus.LOADED,
-            isRefreshing = true, error = null) }
+        state.update {
+            it.copy(
+                status = if (it.stops.isEmpty()) LoadStatus.LOADING else LoadStatus.LOADED,
+                isRefreshing = true,
+                error = null,
+            )
+        }
         refreshJob = viewModelScope.launch {
             try {
                 repository.refreshTransitStops(route.operatorId, route.lineId)
@@ -109,20 +129,32 @@ class RouteStopsViewModel @AssistedInject constructor(
 
     private fun updateStops(stops: List<TransitStop>, authoritative: Boolean) {
         val current = state.value
-        // Delete/insert refresh emits a temporary empty list; only the final snapshot removes selection.
+        // Delete/insert refresh emits a temporary empty list; only the final snapshot removes
+        // selection.
         if (current.isRefreshing && !authoritative && stops.isEmpty()) return
-        val selected = current.selectedStopId?.takeUnless { id ->
-            authoritative && stops.none { it.id == id }
-        }
+        val selected =
+            current.selectedStopId?.takeUnless { id ->
+                authoritative && stops.none { it.id == id }
+            }
         if (selected != current.selectedStopId) savedStateHandle["selected_stop"] = selected
-        state.update { it.copy(stops = stops, selectedStopId = selected,
-            status = if (authoritative) LoadStatus.LOADED else it.status,
-            isRefreshing = if (authoritative) false else it.isRefreshing,
-            error = if (authoritative) null else it.error) }
+        state.update {
+            it.copy(
+                stops = stops,
+                selectedStopId = selected,
+                status = if (authoritative) LoadStatus.LOADED else it.status,
+                isRefreshing = if (authoritative) false else it.isRefreshing,
+                error = if (authoritative) null else it.error,
+            )
+        }
     }
 
     private fun fail(error: Exception) {
-        state.update { it.copy(status = LoadStatus.FAILED, isRefreshing = false,
-            error = transitFailureMessage(error)) }
+        state.update {
+            it.copy(
+                status = LoadStatus.FAILED,
+                isRefreshing = false,
+                error = transitFailureMessage(error),
+            )
+        }
     }
 }

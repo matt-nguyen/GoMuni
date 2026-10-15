@@ -11,16 +11,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 import com.nghianguyen.gomuni.features.tracking.TrackingRequest
-import com.nghianguyen.gomuni.features.transit.stops.RouteStopsUiState
-import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.map.ArrivalMapProjection
+import com.nghianguyen.gomuni.features.transit.model.LoadStatus
+import com.nghianguyen.gomuni.features.transit.stops.RouteStopsUiState
+import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
 /**
  * Integrates sheet-scoped arrivals state with explicit parent context and callbacks.
+ *
  * @param stopId Stop whose arrivals are shown.
  * @param lineId Route used to group arrivals and construct tracking requests.
  * @param context Authoritative stops and route metadata from the parent route.
@@ -47,9 +48,12 @@ internal fun StopArrivalsRoute(
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(context, stopId) {
-        viewModel.updateContext(context.stops.find { it.id == stopId },
+        viewModel.updateContext(
+            context.stops.find { it.id == stopId },
             context.status == LoadStatus.LOADED && !context.isRefreshing,
-            context.lines, context.error)
+            context.lines,
+            context.error,
+        )
     }
     val currentMapChanged by rememberUpdatedState(onMapArrivalsChanged)
     SideEffect { currentMapChanged(ArrivalMapProjection(state.stopId, state.predictions)) }
@@ -61,7 +65,10 @@ internal fun StopArrivalsRoute(
     LaunchedEffect(state.fetchedAtMillis, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive && state.fetchedAtMillis != null) {
-                elapsedMinutes = ((System.currentTimeMillis() - state.fetchedAtMillis!!) / 60000).coerceAtLeast(0)
+                elapsedMinutes =
+                    ((System.currentTimeMillis() - state.fetchedAtMillis!!) / 60000).coerceAtLeast(
+                        0,
+                    )
                 delay(60000)
             }
         }
@@ -92,6 +99,7 @@ internal fun StopArrivalsRoute(
 
 /**
  * Presents arrivals in the same modal sheet on compact and wide displays.
+ *
  * @param sheetState Sheet animation state owned by the integration route.
  * @param onDismiss Reports Back, swipe, or outside-tap dismissal.
  * @param content Stateless arrivals content.
@@ -108,5 +116,7 @@ internal fun StopArrivalsSheet(
         sheetState = sheetState,
         shape = RectangleShape,
         containerColor = EditorialTheme.colors.surfaceCard,
-    ) { content() }
+    ) {
+        content()
+    }
 }

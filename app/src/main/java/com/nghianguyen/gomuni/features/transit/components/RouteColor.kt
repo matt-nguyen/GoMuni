@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
-import com.nghianguyen.gomuni.R
 import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.ui.theme.EditorialColors
 

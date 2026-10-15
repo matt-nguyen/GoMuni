@@ -157,6 +157,22 @@ Examples: [screen actions](../app/src/androidTest/java/com/nghianguyen/gomuni/fe
 
 ## Running and reporting
 
+### Formatting
+
+Spotless uses the pinned ktfmt Kotlin style for application/test Kotlin sources
+and Gradle Kotlin scripts. Generated files, local configuration, and vendored
+skills are outside its targets. The Android module's `check` task also runs
+`spotlessCheck`.
+
+```powershell
+.\gradlew.bat spotlessApply
+.\gradlew.bat spotlessCheck
+```
+
+Apply formatting before submitting Kotlin changes. On macOS/Linux use `./gradlew`.
+
+### Tests
+
 Run from the repository root with the Gradle wrapper, configured daemon JVM
 (currently Java 21), and Android SDK 36. See [local configuration](../README.md#configuration).
 Dependencies may need network access; behavior tests must avoid live services and

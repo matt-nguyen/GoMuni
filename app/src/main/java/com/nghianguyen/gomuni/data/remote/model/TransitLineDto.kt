@@ -11,5 +11,5 @@ data class TransitLineDto(
     @SerializedName("PublicCode") val publicCode: String,
     @SerializedName("SiriLineRef") val siriLineRef: String,
     @SerializedName("Monitored") val monitored: Boolean,
-    @SerializedName("OperatorRef") val operatorRef: String
+    @SerializedName("OperatorRef") val operatorRef: String,
 )

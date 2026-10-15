@@ -31,46 +31,48 @@ fun EditorialTextField(
     label: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
-    singleLine: Boolean = true
+    singleLine: Boolean = true,
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val borderColor = if (isFocused) {
-        EditorialTheme.colors.electricAlert
-    } else {
-        EditorialTheme.colors.surfaceStroke
-    }
+    val borderColor =
+        if (isFocused) {
+            EditorialTheme.colors.electricAlert
+        } else {
+            EditorialTheme.colors.surfaceStroke
+        }
     val borderWidth = if (isFocused) 2.dp else 1.dp
 
     Box(modifier = modifier) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(EditorialTheme.colors.surfaceCard)
-                .border(borderWidth, borderColor)
-                .onFocusChanged { isFocused = it.isFocused }
-                .padding(
-                    horizontal = EditorialTheme.spacing.spaceMd,
-                    vertical = EditorialTheme.spacing.spaceSm
+            modifier =
+                Modifier.fillMaxWidth()
+                    .background(EditorialTheme.colors.surfaceCard)
+                    .border(borderWidth, borderColor)
+                    .onFocusChanged { isFocused = it.isFocused }
+                    .padding(
+                        horizontal = EditorialTheme.spacing.spaceMd,
+                        vertical = EditorialTheme.spacing.spaceSm,
+                    ),
+            textStyle =
+                EditorialTheme.typography.bodyLarge.copy(
+                    color = EditorialTheme.colors.editorialPaper,
                 ),
-            textStyle = EditorialTheme.typography.bodyLarge.copy(
-                color = EditorialTheme.colors.editorialPaper
-            ),
             cursorBrush = SolidColor(EditorialTheme.colors.electricAlert),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
             singleLine = singleLine,
             decorationBox = { innerTextField ->
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (label != null) {
                         Text(
                             text = label,
                             style = EditorialTheme.typography.labelSmall,
                             color = EditorialTheme.colors.onSurfaceVariant,
-                            modifier = Modifier.padding(end = EditorialTheme.spacing.spaceXs)
+                            modifier = Modifier.padding(end = EditorialTheme.spacing.spaceXs),
                         )
                     }
                     Box(modifier = Modifier.weight(1f)) {
@@ -78,13 +80,13 @@ fun EditorialTextField(
                             Text(
                                 text = placeholder,
                                 style = EditorialTheme.typography.bodyLarge,
-                                color = EditorialTheme.colors.onSurfaceVariant.copy(alpha = 0.5f)
+                                color = EditorialTheme.colors.onSurfaceVariant.copy(alpha = 0.5f),
                             )
                         }
                         innerTextField()
                     }
                 }
-            }
+            },
         )
     }
 }

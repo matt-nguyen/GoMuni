@@ -10,15 +10,17 @@ import com.nghianguyen.gomuni.data.mapper.toDomain
 import com.nghianguyen.gomuni.data.mapper.toEntity
 import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.domain.model.TransitStop
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 
-class TransitLocalDataSourceImpl @Inject constructor(
+class TransitLocalDataSourceImpl
+@Inject
+constructor(
     private val transitLineDao: TransitLineDao,
     private val transitStopDao: TransitStopDao,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
 ) : TransitLocalDataSource {
 
     private object PreferencesKeys {

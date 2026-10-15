@@ -30,7 +30,9 @@ internal data class TransitMapPresentation(
     val onStopSelected: (TransitStop) -> Unit = {},
 )
 
-/** Transit-host presentation scope. Entries register independently during navigation transitions. */
+/**
+ * Transit-host presentation scope. Entries register independently during navigation transitions.
+ */
 @Stable
 internal class SharedTransitMapState {
     private val bindings = mutableStateMapOf<NavKey, TransitMapBinding>()
@@ -55,6 +57,7 @@ internal class TransitMapBinding(presentation: TransitMapPresentation) {
 
 /**
  * Publishes a route's map inputs for the lifetime of that route composition.
+ *
  * @param state Presentation scope owned by the transit host.
  * @param owner Entry supplying these inputs.
  * @param presentation Current data, selection, styling, and interactions.
@@ -81,6 +84,7 @@ internal fun rememberTransitMapBinding(
 
 /**
  * Owns a stable scaffold and map region independently of destination transitions.
+ *
  * @param state Transit-scoped presentation registrations from entry-owned routes.
  * @param destination Current destination, which exclusively selects presentation inputs.
  * @param locationGranted Whether the map can display the user's location.
@@ -102,34 +106,36 @@ internal fun SharedTransitLayout(
     // Retain the last rendered snapshot while the incoming entry registers. This does
     // not retain entry scopes and never gives an outgoing entry control of map clicks.
     var previous by remember { mutableStateOf<RenderedTransitPresentation?>(null) }
-    val rendered = binding?.let { RenderedTransitPresentation(owner, it.presentation, it.topBar) }
-        ?: previous
+    val rendered =
+        binding?.let { RenderedTransitPresentation(owner, it.presentation, it.topBar) } ?: previous
     SideEffect { if (binding != null) previous = rendered }
-    val presentation = rendered?.map
-        ?: TransitMapPresentation(routeColor = EditorialTheme.colors.muniRed)
+    val presentation =
+        rendered?.map ?: TransitMapPresentation(routeColor = EditorialTheme.colors.muniRed)
     val currentBinding by rememberUpdatedState(binding)
-    val viewport = rememberTransitMapViewport(
-        data = presentation.data,
-        routeId = (rendered?.owner as? TransitStopsKey)?.lineId,
-        selectedStopId = presentation.selectedStopId,
-        focusArrivals = presentation.focusArrivals,
-        cameraKey = rendered?.owner,
-    )
+    val viewport =
+        rememberTransitMapViewport(
+            data = presentation.data,
+            routeId = (rendered?.owner as? TransitStopsKey)?.lineId,
+            selectedStopId = presentation.selectedStopId,
+            focusArrivals = presentation.focusArrivals,
+            cameraKey = rendered?.owner,
+        )
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = EditorialTheme.colors.editorialBlack,
         topBar = {
             val topBar = rendered?.topBar
             if (topBar != null) topBar()
-            else TransitExplorerTopBar(
-                title = stringResource(R.string.muni),
-                routeColor = null,
-                canGoBack = false,
-                routesState = RoutesUiState(),
-                onBack = {},
-                onRefresh = {},
-                onSort = {},
-            )
+            else
+                TransitExplorerTopBar(
+                    title = stringResource(R.string.muni),
+                    routeColor = null,
+                    canGoBack = false,
+                    routesState = RoutesUiState(),
+                    onBack = {},
+                    onRefresh = {},
+                    onSort = {},
+                )
         },
     ) { padding ->
         TransitDestinationLayout(

@@ -22,19 +22,31 @@ fun TransitLoadContent(
     content: @Composable (Modifier) -> Unit,
 ) {
     Column(modifier) {
-        if (hasData && refreshing) LinearProgressIndicator(Modifier.fillMaxWidth(), color = EditorialTheme.colors.signalChartreuse)
+        if (hasData && refreshing)
+            LinearProgressIndicator(
+                Modifier.fillMaxWidth(),
+                color = EditorialTheme.colors.signalChartreuse,
+            )
         if (error != null) {
-            Text(error, color = EditorialTheme.colors.electricAlert, modifier = Modifier.padding(EditorialTheme.spacing.spaceMd))
-            TextButton(onClick = onRetry, enabled = !refreshing) { Text(stringResource(R.string.retry)) }
+            Text(
+                error,
+                color = EditorialTheme.colors.electricAlert,
+                modifier = Modifier.padding(EditorialTheme.spacing.spaceMd),
+            )
+            TextButton(onClick = onRetry, enabled = !refreshing) {
+                Text(stringResource(R.string.retry))
+            }
         }
         when {
             hasData -> content(Modifier.weight(1f))
-            loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = EditorialTheme.colors.signalChartreuse)
-            }
-            error == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(emptyText, color = EditorialTheme.colors.onSurfaceVariant)
-            }
+            loading ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = EditorialTheme.colors.signalChartreuse)
+                }
+            error == null ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(emptyText, color = EditorialTheme.colors.onSurfaceVariant)
+                }
         }
     }
 }
