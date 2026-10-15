@@ -12,6 +12,11 @@ decision records. Navigation events and destination lifetimes are governed by
 Apply these conventions to new work and authorized refactors. Inspect existing
 behavior before changing it; do not turn an unrelated bug fix into a state migration.
 
+This document owns state shape, naming, presentation policies, effect delivery,
+and restoration contracts. [ViewModels](viewmodels.md) owns handlers, coroutine
+implementation, initialization, and ViewModel testing. Feature documents record
+application-specific decisions and exceptions.
+
 ## Ownership and data flow
 
 Use unidirectional data flow: state flows to the screen, actions flow to its owner,
@@ -34,15 +39,19 @@ ViewModels, collect repositories, or perform business operations during renderin
 Route wrappers collect state and connect callbacks to actions. Reusable components
 receive the subset of data and callbacks they need.
 
-## Modeling state
+## State contracts
 
-Use an immutable data class for the screen's UI state, with explicit fields and
-nested types where useful. Group values by responsibility and lifecycle rather
-than collecting unrelated state into one application-wide model.
+Expose rendering data as a read-only `StateFlow<FeatureUiState>`. `FeatureUiState`
+is an immutable data class containing only rendering inputs. Group values by
+responsibility and lifetime rather than collecting unrelated state into one model.
 
-- Use nested sealed types or enums for mutually exclusive modes, selections,
-  workflow phases, editing states, or operation outcomes. This is not limited to
-  loading, content, and error states.
+Keep workflow progress and pending platform requests separate by default. Model
+necessary operation phases in their operation owner and derive busy/error
+presentation from that owner.
+
+- Use nested sealed types or enums for mutually exclusive sub-UI modes, such as
+  loading/content/error or editing states. Do not model the top-level rendering
+  contract as a sealed workflow.
 - Put phase-specific payloads inside their phase where that prevents invalid
   combinations. Avoid independent flags that allow contradictory states.
 - Keep independent concerns independent: content, refresh, selection, and a
@@ -69,38 +78,25 @@ display text at an appropriate UI boundary.
 
 ## State production and collection
 
-Expose a read-only `StateFlow<FeatureUiState>` from the ViewModel. Keep mutable
-flows private. Produce state by combining authoritative sources with owned inputs
-and operation state. Use `stateIn` for derived flows where appropriate, or private
-mutable state with controlled updates for imperative workflows.
+StateFlow represents the latest snapshot and may conflate intermediate values; do
+not use rendering-state changes as a command queue. Derive rendering state from
+its authoritative inputs without introducing independently mutable copies.
 
-Define the initial value, sharing policy, and restart behavior deliberately.
-Subscription-driven production must not accidentally repeat commands when a
-collector returns. Avoid copying repository data into a second mutable source of
-truth solely to expose it to the UI.
-
-Route wrappers collect using `collectAsStateWithLifecycle`. Lifecycle-aware
-collection does not automatically stop every ViewModel job or upstream producer;
-define production and work lifetimes separately. Keep computation and blocking
-work off the main thread using the appropriate data-layer or coroutine mechanisms.
-
-Use atomic updates when concurrent operations can change owned state, and serialize
-transitions that must occur together. Do not put effects inside an update lambda
-that may execute more than once. StateFlow represents the latest snapshot and can
-conflate intermediate values; do not rely on observing every state change to
-deliver an event or trigger an essential operation.
+ViewModel production, sharing, and coroutine implementation follow
+[Coroutines and concurrency](viewmodels.md#coroutines-and-concurrency), including
+[UI-state-driven requests](viewmodels.md#ui-state-driven-requests-flatmaplatest).
+Lifecycle-aware route collection follows [Compose conventions](compose.md#effects-and-lifecycle-integration).
 
 ## Actions and transitions
 
 Callbacks express user intent, such as changing a filter, selecting an item, retrying,
-or submitting. Use typed actions or explicit ViewModel methods consistently within
-the feature. The owner validates the action against current state; disabling a
-button in the UI is not sufficient protection against duplicate requests.
+or submitting. ViewModel input dispatch and validation follow
+[the ViewModel implementation checklist](viewmodels.md#implementation-checklist).
+Purely local presentation interactions belong to their Compose state owner.
 
 For each important action, define its preconditions, resulting state, asynchronous
 work, success/failure behavior, and repeated-action policy. State updates should
 leave the model valid even when operations overlap or complete out of order.
-Purely local presentation actions may remain in their Compose owner.
 
 ## Loading, refresh, and error policies
 
@@ -126,27 +122,37 @@ its relationship to the new request clear.
 
 ## Asynchronous work and stale results
 
-Scope screen work to its ViewModel and define any narrower visibility or request
-lifetime. Work that must survive destination removal needs an appropriate owner
-outside that screen.
+A delayed result must not overwrite a newer selection, error, or loading state, or
+trigger an effect for an obsolete interaction. Operation cancellation and request
+implementation belong to [ViewModel concurrency](viewmodels.md#coroutines-and-concurrency),
+with separate [one-shot](viewmodels.md#one-shot-requests-cancel-and-replace) and
+[UI-state-driven](viewmodels.md#ui-state-driven-requests-flatmaplatest) examples.
+External request correlation follows the delivery contract below.
 
-Cancel obsolete jobs when inputs change or newer work supersedes them. Also verify
-request identity, generation, or current arguments before accepting results; cancellation
-alone does not prove that an outdated callback or response cannot arrive. Apply this
-check to success, errors, and cleanup so old work cannot clear a newer loading state.
+## Naming
 
-Preserve coroutine cancellation rather than converting it into a user-visible error.
-Define retry, debounce, polling, and duplicate-action policies per operation. A delayed
-result must not update a different selection, overwrite newer user input, or trigger
-an effect for an obsolete interaction.
+| Contract | Name | Examples |
+| --- | --- | --- |
+| ViewModel inputs | `<Feature>Action` | `StopsAction.StopSelected`, `Refresh` |
+| Rendering data | `<Feature>UiState` | `StopsUiState` |
+| Transient outputs | `<Feature>Effect` | `StopsEffect` |
+| Navigation effects | `NavigateTo<Destination>`, `NavigateBack` | `NavigateToArrivals(stopId)` |
+| UI effects | `Show<Meaning>`, `Request<Interaction>` | `ShowStopSelectionHint`, `RequestSearchFocus` |
+| Recoverable requests | `<Feature>Request` | `TrackingRequest` |
+
+Name actions reporting occurrences in past tense (`StopSelected`, `PermissionResolved`);
+commands may use imperative names (`Refresh`, `StartTracking`). Effects use verb-led
+names describing the requested behavior. Name UI effects by meaning so routes choose
+the surface and localized text. Avoid `Event` as a contract suffix: it obscures input
+versus output. Expose `effects` backed by private `_effects`.
 
 ## State and one-time effects
 
-Use state for information needed to faithfully render or resume the screen. Use a
-dedicated typed effect stream for transient actions whose loss is acceptable under
-the feature's delivery policy, such as a nonessential snackbar. Use acknowledged
-pending state for effects that must survive recreation or whose loss would leave
-the workflow incomplete.
+Keep rendering state separate from execution requests. Expose one typed
+`<Feature>Effect` hierarchy through one read-only `effects` flow for transient
+navigation and UI effects whose loss is acceptable, such as a nonessential snackbar
+or immediate, repeatable navigation interaction. Keep acknowledged pending requests
+separate when loss would interrupt the user's task or recovery is required.
 
 This stream convention is project policy. Android's general UI-event guidance
 prefers reducing ViewModel-originated events to state, particularly where delivery
@@ -154,7 +160,10 @@ matters; the transient-stream exception requires explicit loss semantics.
 [Android UI event guidance](https://developer.android.com/topic/architecture/ui-layer/events)
 
 For transient streams, define buffering, replay, inactive-consumer behavior, and
-one logical consumer. Collect at a lifecycle-aware route boundary. Do not assume
+one logical consumer for the combined stream. UI effects must not block navigation;
+choose overflow behavior deliberately because UI traffic can displace navigation.
+Collect at a lifecycle-aware route boundary; see the
+[collection example](viewmodels.md#collecting-effects-in-the-route). Do not assume
 `Channel` or `SharedFlow` provides exactly-once processing or process-death recovery.
 Avoid replaying a completed effect when a collector restarts.
 
@@ -163,8 +172,8 @@ For acknowledged effects:
 - Give the pending request a stable identity and a defined phase.
 - Save the minimum reconstructible request if process recovery is required.
 - Specify whether acknowledgment means accepted, launched, completed, or dismissed.
-- Correlate results and acknowledgment with the request identity; an old result
-  must not clear a newer request.
+- Accept results only for the matching request identity and operation phase;
+  an old acknowledgment must not clear a newer request.
 - Reconcile pending requests with external operation state before retrying.
   Define idempotency, duplicate prevention, or recovery when completion is uncertain.
 
@@ -186,31 +195,20 @@ rather than full datasets, exceptions, or platform objects.
 
 Reload authoritative data and revalidate restored identities. Reconstruct operation
 state instead of restoring a permanent loading flag for a coroutine that no longer
-exists. Define how interrupted submissions or external operations are reconciled
-before retrying. Follow navigation.md for back-stack and entry restoration.
+exists. Never restore completed effects as pending. Apply the acknowledgment and
+uncertain-outcome rules above before retrying. Saved state is not durable storage
+or an exactly-once guarantee. Follow [Navigation](navigation.md#state-restoration)
+for back-stack restoration and [ViewModels](viewmodels.md#platform-integration)
+for saved-state implementation.
 
 ## Feature contracts and verification
 
-Feature documentation should identify the state owner, initial state, invariants,
-actions, common transitions, loading/error policies, effect delivery contract, and
-restoration behavior. Record accepted exceptions with their rationale.
-
-Before a refactor, map existing state to its owners and consumers. Preserve intended
-user-visible behavior unless the task authorizes a change. For a bug, trace the action,
-operation identity, state transition, and rendered result before changing the model.
-
-Verify behavior at the relevant boundary:
-
-- Valid initial, empty, content, partial, and failure states supported by the feature.
-- Refresh and retry behavior with and without existing data.
-- Repeated actions, concurrent operations, cancellation, and out-of-order results.
-- Selection changes or removal while requests are pending.
-- Effect loss/replay policy, acknowledgment, and stale-result correlation.
-- Collector restart, configuration changes, and process recovery where required.
-
-Test observable outcomes and invariants rather than every transient emission or
-private implementation detail. Use screen previews or UI tests for meaningful
-rendering states. Report checks performed and any unverified recovery behavior.
+Feature documentation records owners, initial state, invariants, presentation
+policies, and effect/restoration semantics. Record exceptions with their rationale.
+Verify meaningful rendering states and interactions at the UI boundary, and effect
+loss/replay and recreation behavior at their integration boundary. ViewModel tests
+follow the [verification checklist](viewmodels.md#verification-checklist). Report
+material unverified behavior.
 
 ## References
 

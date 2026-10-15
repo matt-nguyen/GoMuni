@@ -25,7 +25,6 @@ class BusTrackingService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var refreshJob: Job? = null
-    private var activeRequestId: String? = null
     private val trackingPreferences by lazy { getSharedPreferences("bus_tracking_requests", Context.MODE_PRIVATE) }
 
     private var stopId: String = ""
@@ -42,8 +41,6 @@ class BusTrackingService : Service() {
         const val ACTION_REFRESH = "ACTION_REFRESH"
         const val ACTION_STOP = "ACTION_STOP"
 
-        const val EXTRA_REQUEST_ID = "EXTRA_REQUEST_ID"
-        private const val HANDLED_REQUESTS = "handled_requests"
         private const val SESSION_ACTIVE = "session_active"
         const val EXTRA_STOP_ID = "EXTRA_STOP_ID"
         const val EXTRA_STOP_NAME = "EXTRA_STOP_NAME"
@@ -60,31 +57,13 @@ class BusTrackingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val requestId = intent.getStringExtra(EXTRA_REQUEST_ID)
-                val handled = trackingPreferences.getStringSet(HANDLED_REQUESTS, emptySet()).orEmpty()
-                if (requestId != null && requestId in handled) {
-                    // Replays never replace a newer session or revive a stopped request.
-                    if (activeRequestId == null) {
-                        restoreSession()
-                        startForegroundService()
-                        if (trackingPreferences.getBoolean(SESSION_ACTIVE, false)) refreshArrivals()
-                        else {
-                            // Fulfil Android's foreground-start contract before stopping.
-                            stopForeground(STOP_FOREGROUND_REMOVE)
-                            stopSelf()
-                            return START_NOT_STICKY
-                        }
-                    }
-                    return START_STICKY
-                }
                 stopId = intent.getStringExtra(EXTRA_STOP_ID) ?: ""
                 stopName = intent.getStringExtra(EXTRA_STOP_NAME) ?: ""
                 lineRef = intent.getStringExtra(EXTRA_LINE_REF) ?: ""
                 lineName = intent.getStringExtra(EXTRA_LINE_NAME) ?: ""
                 vehicleRef = intent.getStringExtra(EXTRA_VEHICLE_REF)
-                activeRequestId = requestId
                 startForegroundService()
-                persistSession(requestId)
+                persistSession()
                 refreshArrivals()
             }
             ACTION_REFRESH -> {
@@ -93,7 +72,6 @@ class BusTrackingService : Service() {
             }
             ACTION_STOP -> {
                 trackingPreferences.edit().putBoolean(SESSION_ACTIVE, false).commit()
-                activeRequestId = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
@@ -112,14 +90,9 @@ class BusTrackingService : Service() {
         return START_STICKY
     }
 
-    private fun persistSession(requestId: String?) {
-        val handled = trackingPreferences.getStringSet(HANDLED_REQUESTS, emptySet()).orEmpty().toMutableSet()
-        requestId?.let { handled.add(it) }
-        // Save the target and replay history atomically before another start is processed.
+    private fun persistSession() {
         trackingPreferences.edit()
-            .putStringSet(HANDLED_REQUESTS, handled)
             .putBoolean(SESSION_ACTIVE, true)
-            .putString(EXTRA_REQUEST_ID, requestId)
             .putString(EXTRA_STOP_ID, stopId)
             .putString(EXTRA_STOP_NAME, stopName)
             .putString(EXTRA_LINE_REF, lineRef)
@@ -129,7 +102,6 @@ class BusTrackingService : Service() {
     }
 
     private fun restoreSession() {
-        activeRequestId = trackingPreferences.getString(EXTRA_REQUEST_ID, null)
         stopId = trackingPreferences.getString(EXTRA_STOP_ID, "").orEmpty()
         stopName = trackingPreferences.getString(EXTRA_STOP_NAME, "").orEmpty()
         lineRef = trackingPreferences.getString(EXTRA_LINE_REF, "").orEmpty()

@@ -100,8 +100,11 @@ background or application-level owner, not its screen ViewModel.
 
 ## ViewModel navigation events
 
-ViewModels emit typed navigation events through a dedicated mechanism. Events
-express destinations or navigation intent without giving ViewModels access to
+Navigation output types, naming, and transient versus acknowledged delivery follow
+[UI state contracts](ui-state.md#state-and-one-time-effects) and
+[naming conventions](ui-state.md#naming). See the
+[ViewModel example](viewmodels.md#main-viewmodel-example) for implementation.
+Requests express destinations or intent without giving ViewModels access to
 `NavDisplay`, a mutable back stack, an Activity, or composable callbacks.
 
 Screen interactions are callbacks to route-level action handlers. The ViewModel

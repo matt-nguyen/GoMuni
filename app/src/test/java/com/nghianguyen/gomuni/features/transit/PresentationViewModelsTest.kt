@@ -108,7 +108,7 @@ class PresentationViewModelsTest {
 
     @Test fun arrivalsDoNotRefreshParentAndRetainPredictionsOnFailure() = runTest(dispatcher) {
         repository.arrivals = { listOf(testArrival) }
-        val vm = retain(StopArrivalsViewModel(repository, SavedStateHandle(), testStop.id))
+        val vm = retain(StopArrivalsViewModel(repository, testStop.id))
         vm.updateContext(testStop, true)
         runCurrent()
         assertEquals(listOf(testArrival), vm.uiState.value.predictions)
@@ -123,7 +123,7 @@ class PresentationViewModelsTest {
     @Test fun removedStopRejectsResultFromNonCooperativeRequest() = runTest(dispatcher) {
         val result = CompletableDeferred<List<BusArrival>>()
         repository.arrivals = { withContext(NonCancellable) { result.await() } }
-        val vm = retain(StopArrivalsViewModel(repository, SavedStateHandle(), testStop.id))
+        val vm = retain(StopArrivalsViewModel(repository, testStop.id))
         vm.updateContext(testStop, true)
         runCurrent()
         vm.updateContext(null, true)
@@ -135,28 +135,25 @@ class PresentationViewModelsTest {
         assertFalse(vm.uiState.value.isRefreshing)
     }
 
-    @Test fun trackingValidatesPredictionAndRestoresPendingRequestUntilMatchingAcknowledgment() = runTest(dispatcher) {
+    @Test fun trackingValidatesPredictionAndHandsOffOnceWithoutRestoration() = runTest(dispatcher) {
         repository.arrivals = { listOf(testArrival) }
-        val saved = SavedStateHandle()
-        val vm = retain(StopArrivalsViewModel(repository, saved, testStop.id))
+        val vm = retain(StopArrivalsViewModel(repository, testStop.id))
         vm.updateContext(testStop, true)
         runCurrent()
         vm.onAction(StopArrivalsAction.Track(ArrivalPredictionKey.from(testArrival.copy(vehicleRef = "unknown"))))
         assertNull(vm.trackingRequest.value)
         vm.onAction(StopArrivalsAction.Track(ArrivalPredictionKey.from(testArrival)))
         val request = requireNotNull(vm.trackingRequest.value)
-        val restored = retain(StopArrivalsViewModel(repository, saved, testStop.id))
-        assertEquals(request, restored.trackingRequest.value)
-        restored.acknowledgeTracking("stale")
-        assertEquals(request, restored.trackingRequest.value)
-        restored.acknowledgeTracking(request.requestId)
+        assertEquals(request, vm.takeTrackingRequest())
+        assertNull(vm.takeTrackingRequest())
+        val restored = retain(StopArrivalsViewModel(repository, testStop.id))
         assertNull(restored.trackingRequest.value)
     }
 
     @Test fun poppedViewModelCancelsItsRequest() = runTest(dispatcher) {
         var cancelled = false
         repository.arrivals = { try { awaitCancellation() } finally { cancelled = true } }
-        val vm = retain(StopArrivalsViewModel(repository, SavedStateHandle(), testStop.id))
+        val vm = retain(StopArrivalsViewModel(repository, testStop.id))
         vm.updateContext(testStop, true)
         runCurrent()
         store.clear()

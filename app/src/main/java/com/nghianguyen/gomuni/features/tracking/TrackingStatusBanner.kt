@@ -10,19 +10,26 @@ import androidx.compose.ui.res.stringResource
 import com.nghianguyen.gomuni.R
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
+/**
+ * Shows startup progress or a dismissible failure; renders nothing when idle.
+ *
+ * @param state Startup progress and error information to display.
+ * @param onDismiss Called when the user dismisses the failure banner.
+ */
 @Composable
-fun TrackingStatusBanner(state: TrackingUiState, onDismiss: (String) -> Unit) {
-    if (state == TrackingUiState.Idle) return
+fun TrackingStatusBanner(state: TrackingUiState, onDismiss: () -> Unit) {
+    val error = state.error
+    if (!state.isStarting && error == null) return
     Column(Modifier.fillMaxWidth().padding(EditorialTheme.spacing.spaceMd)) {
-        if (state.isPending) {
+        if (state.isStarting) {
             LinearProgressIndicator(Modifier.fillMaxWidth(), color = EditorialTheme.colors.signalChartreuse)
             Text(stringResource(R.string.tracking_starting), color = EditorialTheme.colors.editorialPaper)
-        } else if (state is TrackingUiState.Failed) {
-            Text(stringResource(when (state.reason) {
+        } else if (error != null) {
+            Text(stringResource(when (error.reason) {
                 TrackingFailure.PERMISSION_DENIED -> R.string.tracking_permission_denied
                 TrackingFailure.STARTUP_FAILED -> R.string.tracking_start_failed
             }), color = EditorialTheme.colors.electricAlert)
-            TextButton(onClick = { onDismiss(state.requestId) }) { Text(stringResource(R.string.dismiss)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dismiss)) }
         }
     }
 }

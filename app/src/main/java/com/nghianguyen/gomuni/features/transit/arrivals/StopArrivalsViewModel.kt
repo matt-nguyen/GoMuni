@@ -1,6 +1,5 @@
 package com.nghianguyen.gomuni.features.transit.arrivals
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nghianguyen.gomuni.domain.model.TransitStop
@@ -14,14 +13,12 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import java.util.UUID
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 @HiltViewModel(assistedFactory = StopArrivalsViewModel.Factory::class)
 class StopArrivalsViewModel @AssistedInject constructor(
     private val repository: TransitRepository,
-    private val savedStateHandle: SavedStateHandle,
     @Assisted val stopId: String,
 ) : ViewModel() {
     @AssistedFactory interface Factory { fun create(stopId: String): StopArrivalsViewModel }
@@ -35,10 +32,7 @@ class StopArrivalsViewModel @AssistedInject constructor(
     private var stop: TransitStop? = null
     private var loaded = false
 
-    /** An acknowledged request avoids losing a tracking click while the route collector restarts. */
-    private val request = MutableStateFlow(savedStateHandle.get<String>("tracking_request")?.let {
-        runCatching { kotlinx.serialization.json.Json.decodeFromString<TrackingRequest>(it) }.getOrNull()
-    })
+    private val request = MutableStateFlow<TrackingRequest?>(null)
     val trackingRequest = request.asStateFlow()
 
     fun updateContext(selectedStop: TransitStop?, ready: Boolean,
@@ -74,19 +68,17 @@ class StopArrivalsViewModel @AssistedInject constructor(
                 val prediction = state.value.predictions.find {
                     ArrivalPredictionKey.from(it) == action.prediction
                 } ?: return
-                val target = TrackingRequest(UUID.randomUUID().toString(), selectedStop.id,
+                val target = TrackingRequest(selectedStop.id,
                     selectedStop.name, prediction.lineRef, prediction.lineName, prediction.vehicleRef)
-                savedStateHandle["tracking_request"] = kotlinx.serialization.json.Json.encodeToString(
-                    TrackingRequest.serializer(), target)
                 request.value = target
             }
         }
     }
 
-    fun acknowledgeTracking(requestId: String) {
-        if (request.value?.requestId != requestId) return
-        savedStateHandle.remove<String>("tracking_request")
+    fun takeTrackingRequest(): TrackingRequest? {
+        val pending = request.value
         request.value = null
+        return pending
     }
 
     private fun refresh() {
