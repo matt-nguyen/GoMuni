@@ -13,8 +13,7 @@ import org.junit.Test
 
 /** Verifies navigation policy and keys survive Navigation 3 saveable-state restoration. */
 class TransitNavigationRestorationTest {
-    @get:Rule
-    val composeRule = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
     @Test
     fun externalRoute_whenStateRestores_preservesHistoryWithoutSheetEntries() {

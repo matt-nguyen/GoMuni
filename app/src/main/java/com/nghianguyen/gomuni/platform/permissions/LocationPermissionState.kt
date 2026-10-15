@@ -15,13 +15,17 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 internal fun rememberLocationPermissionGranted(): Boolean {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    fun hasLocation() = context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-        context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    fun hasLocation() =
+        context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
     var locationGranted by remember { mutableStateOf(hasLocation()) }
     var locationRequested by rememberSaveable { mutableStateOf(false) }
-    val locationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        locationGranted = hasLocation()
-    }
+    val locationLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            locationGranted = hasLocation()
+        }
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) locationGranted = hasLocation()
@@ -32,7 +36,12 @@ internal fun rememberLocationPermissionGranted(): Boolean {
     LaunchedEffect(Unit) {
         if (!locationGranted && !locationRequested) {
             locationRequested = true
-            locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            locationLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
         }
     }
     return locationGranted

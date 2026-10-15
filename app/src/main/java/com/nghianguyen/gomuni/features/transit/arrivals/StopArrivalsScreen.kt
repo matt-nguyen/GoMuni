@@ -7,11 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.nghianguyen.gomuni.R
-import com.nghianguyen.gomuni.ui.components.*
 import com.nghianguyen.gomuni.features.transit.components.*
-import com.nghianguyen.gomuni.ui.theme.EditorialTheme
-import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.components.isLoading
+import com.nghianguyen.gomuni.features.transit.model.LoadStatus
+import com.nghianguyen.gomuni.ui.components.*
+import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 @Composable
 fun StopArrivalsScreen(
@@ -24,24 +24,44 @@ fun StopArrivalsScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth()) {
-        TextButton(onClick = { onAction(StopArrivalsAction.Dismiss) }) { Text(stringResource(R.string.close_arrivals)) }
+        TextButton(onClick = { onAction(StopArrivalsAction.Dismiss) }) {
+            Text(stringResource(R.string.close_arrivals))
+        }
         val stop = uiState.stop
         if (stop == null) {
-            if (uiState.error != null) Text(uiState.error, color = EditorialTheme.colors.electricAlert,
-                modifier = Modifier.padding(EditorialTheme.spacing.spaceMd))
+            if (uiState.error != null)
+                Text(
+                    uiState.error,
+                    color = EditorialTheme.colors.electricAlert,
+                    modifier = Modifier.padding(EditorialTheme.spacing.spaceMd),
+                )
             else CircularProgressIndicator(color = EditorialTheme.colors.signalChartreuse)
-            if (uiState.error != null) TextButton(onClick = { onAction(StopArrivalsAction.Refresh) }) {
-                Text(stringResource(R.string.retry))
-            }
+            if (uiState.error != null)
+                TextButton(onClick = { onAction(StopArrivalsAction.Refresh) }) {
+                    Text(stringResource(R.string.retry))
+                }
         } else {
-            uiState.error?.let { Text(it, color = EditorialTheme.colors.electricAlert,
-                modifier = Modifier.padding(EditorialTheme.spacing.spaceMd)) }
-            StopArrivalsContent(stop, uiState.predictions.filter { it.lineRef == lineId },
+            uiState.error?.let {
+                Text(
+                    it,
+                    color = EditorialTheme.colors.electricAlert,
+                    modifier = Modifier.padding(EditorialTheme.spacing.spaceMd),
+                )
+            }
+            StopArrivalsContent(
+                stop,
+                uiState.predictions.filter { it.lineRef == lineId },
                 uiState.predictions.filter { it.lineRef != lineId },
-                uiState.isRefreshing || uiState.status.isLoading, uiState.lines, uiState.fetchedAtMillis,
+                uiState.isRefreshing || uiState.status.isLoading,
+                uiState.lines,
+                uiState.fetchedAtMillis,
                 { onAction(StopArrivalsAction.Refresh) },
                 { onAction(StopArrivalsAction.Track(ArrivalPredictionKey.from(it))) },
-                uiState.status == LoadStatus.LOADED, trackingEnabled, elapsedMinutes, listState)
+                uiState.status == LoadStatus.LOADED,
+                trackingEnabled,
+                elapsedMinutes,
+                listState,
+            )
         }
     }
 }

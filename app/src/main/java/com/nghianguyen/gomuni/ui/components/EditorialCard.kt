@@ -14,18 +14,16 @@ import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 fun EditorialCard(
     modifier: Modifier = Modifier,
     backgroundColor: Color = EditorialTheme.colors.surfaceCard,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(backgroundColor)
+        modifier = modifier.fillMaxWidth().background(backgroundColor),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = EditorialTheme.spacing.gutterMobile)
-                .padding(vertical = EditorialTheme.spacing.spaceMd)
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = EditorialTheme.spacing.gutterMobile)
+                    .padding(vertical = EditorialTheme.spacing.spaceMd),
         ) {
             content()
         }

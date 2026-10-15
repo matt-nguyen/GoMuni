@@ -6,5 +6,5 @@ data class TransitStop(
     val latitude: Double,
     val longitude: Double,
     val stopType: String?,
-    val lineId: String
+    val lineId: String,
 )

@@ -6,12 +6,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TransitLineDao {
-    @Query("SELECT * FROM transit_lines")
-    fun getTransitLines(): Flow<List<TransitLineEntity>>
+    @Query("SELECT * FROM transit_lines") fun getTransitLines(): Flow<List<TransitLineEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(lines: List<TransitLineEntity>): List<Long>
 
-    @Query("DELETE FROM transit_lines")
-    suspend fun clearAll(): Int
+    @Query("DELETE FROM transit_lines") suspend fun clearAll(): Int
 }

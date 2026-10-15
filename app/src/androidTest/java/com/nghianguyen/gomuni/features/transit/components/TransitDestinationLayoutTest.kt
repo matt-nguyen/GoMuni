@@ -17,8 +17,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TransitDestinationLayoutTest {
-    @get:Rule
-    val composeRule = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
     @Test
     fun destinationLayout_whenSwitchingLayouts_keepsHeaderMapAndPanelInteractive() {
@@ -28,9 +27,15 @@ class TransitDestinationLayoutTest {
         var mapClicks = 0
         composeRule.setContent {
             GoMuniTheme {
-                Scaffold(topBar = {
-                    Box(Modifier.fillMaxWidth().height(48.dp).testTag("header").clickable { headerClicks++ })
-                }) { padding ->
+                Scaffold(
+                    topBar = {
+                        Box(
+                            Modifier.fillMaxWidth().height(48.dp).testTag("header").clickable {
+                                headerClicks++
+                            },
+                        )
+                    },
+                ) { padding ->
                     TransitDestinationLayout(
                         wide = wide.value,
                         modifier = Modifier.padding(padding),

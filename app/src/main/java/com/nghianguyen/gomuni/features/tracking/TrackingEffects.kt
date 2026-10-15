@@ -13,8 +13,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Executes tracking effects while resumed and reports results through [onAction].
- * Stopping collection interrupts startup unless a permission dialog is in progress.
+ * Executes tracking effects while resumed and reports results through [onAction]. Stopping
+ * collection interrupts startup unless a permission dialog is in progress.
  *
  * @param effects One-time permission and service-launch commands to execute.
  * @param onAction Receives permission results, launch outcomes, and startup interruptions.
@@ -28,10 +28,13 @@ internal fun TrackingEffects(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val currentAction by rememberUpdatedState(onAction)
     val permission = rememberPostNotificationPermissionState { status ->
-        currentAction(TrackingAction.PermissionResolved(
-            granted = status == PermissionStatus.Granted,
-            shouldShowRationale = (status as? PermissionStatus.Denied)?.shouldShowRationale ?: false,
-        ))
+        currentAction(
+            TrackingAction.PermissionResolved(
+                granted = status == PermissionStatus.Granted,
+                shouldShowRationale =
+                    (status as? PermissionStatus.Denied)?.shouldShowRationale ?: false,
+            ),
+        )
     }
     LaunchedEffect(effects, lifecycle, context, permission) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -47,7 +50,8 @@ internal fun TrackingEffects(
             } finally {
                 // An actual permission dialog may finish after pause or rotation.
                 // Other unhandled transient work is abandoned when collection stops.
-                if (!permission.isRequestInProgress) currentAction(TrackingAction.StartupInterrupted)
+                if (!permission.isRequestInProgress)
+                    currentAction(TrackingAction.StartupInterrupted)
             }
         }
     }
@@ -70,12 +74,13 @@ private fun startTrackingService(
     request: TrackingRequest,
     onAction: (TrackingAction) -> Unit,
 ) {
-    val accepted = try {
-        launchTracking(context, request)
-        true
-    } catch (error: RuntimeException) {
-        if (error is CancellationException) throw error
-        false
-    }
+    val accepted =
+        try {
+            launchTracking(context, request)
+            true
+        } catch (error: RuntimeException) {
+            if (error is CancellationException) throw error
+            false
+        }
     onAction(TrackingAction.LaunchResolved(accepted))
 }

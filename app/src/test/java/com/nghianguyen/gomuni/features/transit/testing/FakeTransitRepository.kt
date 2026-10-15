@@ -14,15 +14,20 @@ internal class FakeTransitRepository : TransitRepository {
     var refreshLines: suspend () -> Unit = {}
     var refreshStops: suspend () -> Unit = {}
     var arrivals: suspend () -> List<BusArrival> = { emptyList() }
+
     override fun getTransitLines() = lines
+
     override suspend fun refreshTransitLines(operatorId: String, forceRefresh: Boolean) {
         lineRefreshes++
         refreshLines()
     }
+
     override fun getTransitStops(lineId: String) = stops
+
     override suspend fun refreshTransitStops(operatorId: String, lineId: String) {
         stopRefreshes++
         refreshStops()
     }
+
     override suspend fun getBusArrivals(stopId: String) = arrivals()
 }

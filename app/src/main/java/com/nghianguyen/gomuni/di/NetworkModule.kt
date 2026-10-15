@@ -7,12 +7,12 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -25,10 +25,12 @@ object NetworkModule {
             val original = chain.request()
             val originalHttpUrl = original.url
 
-            val url = originalHttpUrl.newBuilder()
-                .addQueryParameter("api_key", BuildConfig.TRANSIT_API_KEY)
-                .addQueryParameter("format", "json")
-                .build()
+            val url =
+                originalHttpUrl
+                    .newBuilder()
+                    .addQueryParameter("api_key", BuildConfig.TRANSIT_API_KEY)
+                    .addQueryParameter("format", "json")
+                    .build()
 
             val requestBuilder = original.newBuilder().url(url)
             val request = requestBuilder.build()
@@ -41,9 +43,10 @@ object NetworkModule {
     fun provideOkHttpClient(apiKeyInterceptor: Interceptor): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor { message ->
             Log.d("TransitAPI", message)
-        }.apply {
-            level = HttpLoggingInterceptor.Level.BODY
         }
+            .apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
 
         return OkHttpClient.Builder()
             .addInterceptor(apiKeyInterceptor)

@@ -10,8 +10,12 @@ data class ArrivalPredictionKey(
     val aimedArrival: String?,
 ) {
     companion object {
-        fun from(arrival: BusArrival) = ArrivalPredictionKey(
-            arrival.lineRef, arrival.vehicleRef, arrival.expectedArrival, arrival.aimedArrival,
-        )
+        fun from(arrival: BusArrival) =
+            ArrivalPredictionKey(
+                arrival.lineRef,
+                arrival.vehicleRef,
+                arrival.expectedArrival,
+                arrival.aimedArrival,
+            )
     }
 }

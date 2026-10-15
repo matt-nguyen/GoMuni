@@ -7,11 +7,11 @@ import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 @Composable
 fun EditorialDivider(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     HorizontalDivider(
         modifier = modifier,
         thickness = EditorialTheme.spacing.hairline,
-        color = EditorialTheme.colors.hairlineGray
+        color = EditorialTheme.colors.hairlineGray,
     )
 }

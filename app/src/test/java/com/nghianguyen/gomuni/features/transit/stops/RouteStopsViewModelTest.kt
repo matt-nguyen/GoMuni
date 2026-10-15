@@ -22,8 +22,7 @@ class RouteStopsViewModelTest {
     private val route = RouteKey("SF", "38")
     private val testStop = TransitStop("123", "Market", 37.78, -122.41, null, "38")
 
-    @get:Rule
-    val mainDispatcherRule = MainDispatcherRule()
+    @get:Rule val mainDispatcherRule = MainDispatcherRule()
     private val store = ViewModelStore()
     private val repository = FakeTransitRepository()
 
@@ -31,87 +30,94 @@ class RouteStopsViewModelTest {
     fun clearViewModels() {
         store.clear()
     }
+
     private fun <T : ViewModel> retain(model: T): T {
         store.put("${model.javaClass.name}:${System.identityHashCode(model)}", model)
         return model
     }
 
     @Test
-    fun `stops ignore intermediate empty refresh and clear removed selection only at completion`() = runTest(mainDispatcherRule.dispatcher) {
-        repository.stops.value = listOf(testStop)
-        val refresh = CompletableDeferred<Unit>()
-        repository.refreshStops = { refresh.await() }
-        val saved = SavedStateHandle(mapOf("selected_stop" to testStop.id))
-        val viewModel = retain(RouteStopsViewModel(repository, saved, route))
-        runCurrent()
-        repository.stops.value = emptyList()
-        runCurrent()
-        assertEquals(listOf(testStop), viewModel.uiState.value.stops)
-        assertEquals(testStop.id, viewModel.uiState.value.selectedStopId)
-        refresh.complete(Unit)
-        runCurrent()
-        assertTrue(viewModel.uiState.value.stops.isEmpty())
-        assertNull(viewModel.uiState.value.selectedStopId)
-        assertNull(saved.get<String>("selected_stop"))
-        assertEquals(LoadStatus.LOADED, viewModel.uiState.value.status)
-    }
+    fun `stops ignore intermediate empty refresh and clear removed selection only at completion`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            repository.stops.value = listOf(testStop)
+            val refresh = CompletableDeferred<Unit>()
+            repository.refreshStops = { refresh.await() }
+            val saved = SavedStateHandle(mapOf("selected_stop" to testStop.id))
+            val viewModel = retain(RouteStopsViewModel(repository, saved, route))
+            runCurrent()
+            repository.stops.value = emptyList()
+            runCurrent()
+            assertEquals(listOf(testStop), viewModel.uiState.value.stops)
+            assertEquals(testStop.id, viewModel.uiState.value.selectedStopId)
+            refresh.complete(Unit)
+            runCurrent()
+            assertTrue(viewModel.uiState.value.stops.isEmpty())
+            assertNull(viewModel.uiState.value.selectedStopId)
+            assertNull(saved.get<String>("selected_stop"))
+            assertEquals(LoadStatus.LOADED, viewModel.uiState.value.status)
+        }
 
     @Test
-    fun `stop refresh failure retains cached content and can retry`() = runTest(mainDispatcherRule.dispatcher) {
-        repository.stops.value = listOf(testStop)
-        repository.refreshStops = { throw TransitError.Network }
-        val viewModel = retain(RouteStopsViewModel(repository, SavedStateHandle(), route))
-        runCurrent()
-        assertEquals(listOf(testStop), viewModel.uiState.value.stops)
-        assertEquals(LoadStatus.FAILED, viewModel.uiState.value.status)
-        assertNotNull(viewModel.uiState.value.error)
-        repository.refreshStops = {}
-        viewModel.onAction(RouteStopsAction.Refresh)
-        runCurrent()
-        assertNull(viewModel.uiState.value.error)
-        assertEquals(LoadStatus.LOADED, viewModel.uiState.value.status)
-    }
+    fun `stop refresh failure retains cached content and can retry`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            repository.stops.value = listOf(testStop)
+            repository.refreshStops = { throw TransitError.Network }
+            val viewModel = retain(RouteStopsViewModel(repository, SavedStateHandle(), route))
+            runCurrent()
+            assertEquals(listOf(testStop), viewModel.uiState.value.stops)
+            assertEquals(LoadStatus.FAILED, viewModel.uiState.value.status)
+            assertNotNull(viewModel.uiState.value.error)
+            repository.refreshStops = {}
+            viewModel.onAction(RouteStopsAction.Refresh)
+            runCurrent()
+            assertNull(viewModel.uiState.value.error)
+            assertEquals(LoadStatus.LOADED, viewModel.uiState.value.status)
+        }
 
     @Test
-    fun `stop selection opens and dismisses a sheet without navigation`() = runTest(mainDispatcherRule.dispatcher) {
-        repository.stops.value = listOf(testStop)
-        val saved = SavedStateHandle()
-        val viewModel = retain(RouteStopsViewModel(repository, saved, route))
-        runCurrent()
-        val events = mutableListOf<TransitNavigation>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.navigationEvents.toList(events) }
-        viewModel.onAction(RouteStopsAction.SelectStop("missing"))
-        assertNull(viewModel.uiState.value.arrivalsStopId)
-        viewModel.onAction(RouteStopsAction.SelectStop(testStop.id))
-        viewModel.onAction(RouteStopsAction.SelectStop(testStop.id))
-        assertEquals(testStop.id, viewModel.uiState.value.arrivalsStopId)
-        assertEquals(testStop.id, saved.get<String>("arrivals_stop"))
-        assertTrue(events.isEmpty())
-        viewModel.onAction(RouteStopsAction.DismissArrivals("obsolete"))
-        assertEquals(testStop.id, viewModel.uiState.value.arrivalsStopId)
-        viewModel.onAction(RouteStopsAction.Back)
-        assertNull(viewModel.uiState.value.arrivalsStopId)
-        assertEquals(testStop.id, viewModel.uiState.value.selectedStopId)
-        assertNull(saved.get<String>("arrivals_stop"))
-        assertTrue(events.isEmpty())
-        viewModel.onAction(RouteStopsAction.Back)
-        assertEquals(listOf(TransitNavigation.Back), events)
-    }
+    fun `stop selection opens and dismisses a sheet without navigation`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            repository.stops.value = listOf(testStop)
+            val saved = SavedStateHandle()
+            val viewModel = retain(RouteStopsViewModel(repository, saved, route))
+            runCurrent()
+            val events = mutableListOf<TransitNavigation>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                viewModel.navigationEvents.toList(events)
+            }
+            viewModel.onAction(RouteStopsAction.SelectStop("missing"))
+            assertNull(viewModel.uiState.value.arrivalsStopId)
+            viewModel.onAction(RouteStopsAction.SelectStop(testStop.id))
+            viewModel.onAction(RouteStopsAction.SelectStop(testStop.id))
+            assertEquals(testStop.id, viewModel.uiState.value.arrivalsStopId)
+            assertEquals(testStop.id, saved.get<String>("arrivals_stop"))
+            assertTrue(events.isEmpty())
+            viewModel.onAction(RouteStopsAction.DismissArrivals("obsolete"))
+            assertEquals(testStop.id, viewModel.uiState.value.arrivalsStopId)
+            viewModel.onAction(RouteStopsAction.Back)
+            assertNull(viewModel.uiState.value.arrivalsStopId)
+            assertEquals(testStop.id, viewModel.uiState.value.selectedStopId)
+            assertNull(saved.get<String>("arrivals_stop"))
+            assertTrue(events.isEmpty())
+            viewModel.onAction(RouteStopsAction.Back)
+            assertEquals(listOf(TransitNavigation.Back), events)
+        }
 
     @Test
-    fun `external sheet selection restores and rejects old dismissals`() = runTest(mainDispatcherRule.dispatcher) {
-        val saved = SavedStateHandle()
-        val viewModel = retain(RouteStopsViewModel(repository, saved, route))
-        runCurrent()
-        viewModel.onAction(RouteStopsAction.OpenArrivals("123"))
-        viewModel.onAction(RouteStopsAction.OpenArrivals("456"))
-        viewModel.onAction(RouteStopsAction.DismissArrivals("123"))
-        val restored = retain(RouteStopsViewModel(repository, saved, route))
-        assertEquals("456", restored.uiState.value.arrivalsStopId)
-        assertEquals("456", restored.uiState.value.selectedStopId)
-        restored.onAction(RouteStopsAction.DismissArrivals("456"))
-        restored.onAction(RouteStopsAction.OpenArrivals(""))
-        assertNull(restored.uiState.value.arrivalsStopId)
-        assertEquals("456", restored.uiState.value.selectedStopId)
-    }
+    fun `external sheet selection restores and rejects old dismissals`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            val saved = SavedStateHandle()
+            val viewModel = retain(RouteStopsViewModel(repository, saved, route))
+            runCurrent()
+            viewModel.onAction(RouteStopsAction.OpenArrivals("123"))
+            viewModel.onAction(RouteStopsAction.OpenArrivals("456"))
+            viewModel.onAction(RouteStopsAction.DismissArrivals("123"))
+            val restored = retain(RouteStopsViewModel(repository, saved, route))
+            assertEquals("456", restored.uiState.value.arrivalsStopId)
+            assertEquals("456", restored.uiState.value.selectedStopId)
+            restored.onAction(RouteStopsAction.DismissArrivals("456"))
+            restored.onAction(RouteStopsAction.OpenArrivals(""))
+            assertNull(restored.uiState.value.arrivalsStopId)
+            assertEquals("456", restored.uiState.value.selectedStopId)
+        }
 }

@@ -25,8 +25,7 @@ import org.junit.Test
 
 /** Verifies sheet scope and dismissal with Navigation 3 and the arrivals sheet. */
 class ArrivalsSheetIntegrationTest {
-    @get:Rule
-    val composeRule = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Test
@@ -42,30 +41,51 @@ class ArrivalsSheetIntegrationTest {
                 stack = rememberNavBackStack(TransitLinesKey)
                 NavDisplay(
                     backStack = stack,
-                    entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(),
-                        rememberViewModelStoreNavEntryDecorator()),
-                    entryProvider = entryProvider<NavKey> {
-                        entry<TransitLinesKey> {
-                            models[it] = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
-                            Text("Routes")
-                        }
-                        entry<TransitStopsKey> {
-                            models[it] = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
-                            Text("Stops")
-                            opened.value?.let { stopId ->
-                                ArrivalsSheetScope(stopId) {
-                                    sheetModel = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
-                                    sheetLifecycle = LocalLifecycleOwner.current.lifecycle
-                                    StopArrivalsSheet(rememberModalBottomSheetState(), { opened.value = null }) {
-                                        Column(Modifier.height(200.dp)) {
-                                            Text("Arrivals $stopId")
-                                            TextButton(onClick = { opened.value = null }) { Text("Close test sheet") }
+                    entryDecorators =
+                        listOf(
+                            rememberSaveableStateHolderNavEntryDecorator(),
+                            rememberViewModelStoreNavEntryDecorator(),
+                        ),
+                    entryProvider =
+                        entryProvider<NavKey> {
+                            entry<TransitLinesKey> {
+                                models[it] =
+                                    viewModel(
+                                        factory = viewModelFactory { initializer { EntryModel() } },
+                                    )
+                                Text("Routes")
+                            }
+                            entry<TransitStopsKey> {
+                                models[it] =
+                                    viewModel(
+                                        factory = viewModelFactory { initializer { EntryModel() } },
+                                    )
+                                Text("Stops")
+                                opened.value?.let { stopId ->
+                                    ArrivalsSheetScope(stopId) {
+                                        sheetModel =
+                                            viewModel(
+                                                factory =
+                                                    viewModelFactory {
+                                                        initializer { EntryModel() }
+                                                    },
+                                            )
+                                        sheetLifecycle = LocalLifecycleOwner.current.lifecycle
+                                        StopArrivalsSheet(
+                                            rememberModalBottomSheetState(),
+                                            { opened.value = null },
+                                        ) {
+                                            Column(Modifier.height(200.dp)) {
+                                                Text("Arrivals $stopId")
+                                                TextButton(onClick = { opened.value = null }) {
+                                                    Text("Close test sheet")
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    },
+                        },
                 )
             }
         }
@@ -117,6 +137,9 @@ class ArrivalsSheetIntegrationTest {
 
     private class EntryModel : ViewModel() {
         var cleared = false
-        override fun onCleared() { cleared = true }
+
+        override fun onCleared() {
+            cleared = true
+        }
     }
 }

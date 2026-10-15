@@ -16,9 +16,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 
 /**
- * Gives an open sheet its own ViewModel store and a lifecycle bounded by its parent entry.
- * Closing or changing stops clears the store, cancelling unfinished arrivals work. On Activity
- * recreation the parent restores the open stop ID and the sheet reloads its transient data.
+ * Gives an open sheet its own ViewModel store and a lifecycle bounded by its parent entry. Closing
+ * or changing stops clears the store, cancelling unfinished arrivals work. On Activity recreation
+ * the parent restores the open stop ID and the sheet reloads its transient data.
+ *
  * @param stopId Identity of the current sheet session.
  * @param content Arrivals integration rendered with the sheet's owners.
  */
@@ -28,9 +29,12 @@ internal fun ArrivalsSheetScope(stopId: String, content: @Composable () -> Unit)
         val parentStoreOwner = checkNotNull(LocalViewModelStoreOwner.current)
         val parentFactory = parentStoreOwner as HasDefaultViewModelProviderFactory
         val parentLifecycle = LocalLifecycleOwner.current.lifecycle
-        val owner = remember(parentStoreOwner, parentLifecycle) { ArrivalsSheetOwner(parentFactory) }
+        val owner =
+            remember(parentStoreOwner, parentLifecycle) { ArrivalsSheetOwner(parentFactory) }
         DisposableEffect(owner, parentLifecycle) {
-            val observer = LifecycleEventObserver { _, _ -> owner.moveTo(parentLifecycle.currentState) }
+            val observer = LifecycleEventObserver { _, _ ->
+                owner.moveTo(parentLifecycle.currentState)
+            }
             parentLifecycle.addObserver(observer)
             owner.moveTo(parentLifecycle.currentState)
             onDispose {
@@ -41,7 +45,9 @@ internal fun ArrivalsSheetScope(stopId: String, content: @Composable () -> Unit)
         CompositionLocalProvider(
             LocalViewModelStoreOwner provides owner,
             LocalLifecycleOwner provides owner,
-        ) { content() }
+        ) {
+            content()
+        }
     }
 }
 
@@ -50,14 +56,16 @@ private class ArrivalsSheetOwner(
 ) : ViewModelStoreOwner, LifecycleOwner, HasDefaultViewModelProviderFactory by factoryOwner {
     override val viewModelStore = ViewModelStore()
     private val registry = LifecycleRegistry(this)
-    override val lifecycle: Lifecycle get() = registry
+    override val lifecycle: Lifecycle
+        get() = registry
 
     fun moveTo(state: Lifecycle.State) {
         if (registry.currentState != Lifecycle.State.DESTROYED) registry.currentState = state
     }
 
     fun close() {
-        if (registry.currentState == Lifecycle.State.INITIALIZED) registry.currentState = Lifecycle.State.CREATED
+        if (registry.currentState == Lifecycle.State.INITIALIZED)
+            registry.currentState = Lifecycle.State.CREATED
         registry.currentState = Lifecycle.State.DESTROYED
         viewModelStore.clear()
     }

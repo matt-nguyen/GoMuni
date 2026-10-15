@@ -1,6 +1,5 @@
 package com.nghianguyen.gomuni.features.transit.components
 
-import com.nghianguyen.gomuni.ui.components.EditorialDivider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -15,8 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.nghianguyen.gomuni.R
 import com.nghianguyen.gomuni.domain.model.TransitLine
+import com.nghianguyen.gomuni.ui.components.EditorialDivider
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 @Composable
@@ -33,48 +32,60 @@ fun TransitLineList(
     val editorialColors = EditorialTheme.colors
     val filters = listOf("All", "Local", "Rapid", "Express", "Owl")
 
-    val filteredLines = remember(lines, activeFilter) {
-        if (activeFilter == "All") lines
-        else {
-            lines.filter { line ->
-                val id = line.id.uppercase()
-                when (activeFilter) {
-                    "Local" -> id.all { it.isDigit() } || (id.all { it.isLetter() } && !id.endsWith("OWL"))
-                    "Rapid" -> id.endsWith("R")
-                    "Express" -> id.endsWith("X") || id.endsWith("AX") || id.endsWith("BX")
-                    "Owl" -> id.endsWith("OWL")
-                    else -> true
+    val filteredLines =
+        remember(lines, activeFilter) {
+            if (activeFilter == "All") lines
+            else {
+                lines.filter { line ->
+                    val id = line.id.uppercase()
+                    when (activeFilter) {
+                        "Local" ->
+                            id.all { it.isDigit() } ||
+                                (id.all { it.isLetter() } && !id.endsWith("OWL"))
+                        "Rapid" -> id.endsWith("R")
+                        "Express" -> id.endsWith("X") || id.endsWith("AX") || id.endsWith("BX")
+                        "Owl" -> id.endsWith("OWL")
+                        else -> true
+                    }
                 }
             }
         }
-    }
 
-    LazyColumn(state = listState, modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
+    ) {
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(editorialColors.surfaceContainerLow)
-                    .padding(horizontal = EditorialTheme.spacing.gutterMobile, vertical = EditorialTheme.spacing.spaceXs)
-                    .horizontalScroll(filterScrollState),
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .background(editorialColors.surfaceContainerLow)
+                        .padding(
+                            horizontal = EditorialTheme.spacing.gutterMobile,
+                            vertical = EditorialTheme.spacing.spaceXs,
+                        )
+                        .horizontalScroll(filterScrollState),
                 horizontalArrangement = Arrangement.spacedBy(EditorialTheme.spacing.space2xs),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 filters.forEach { filter ->
                     val isActive = filter == activeFilter
                     Box(
-                        modifier = Modifier
-                            .background(
-                                if (isActive) editorialColors.editorialPaper else editorialColors.surfaceCard
-                            )
-                            .clickable { onFilterSelected(filter) }
-                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                        modifier =
+                            Modifier.background(
+                                    if (isActive) editorialColors.editorialPaper
+                                    else editorialColors.surfaceCard,
+                                )
+                                .clickable { onFilterSelected(filter) }
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
                     ) {
                         Text(
                             text = filter.uppercase(),
                             style = EditorialTheme.typography.labelLarge,
-                            color = if (isActive) editorialColors.editorialBlack else editorialColors.onSurface,
-                            fontWeight = FontWeight.SemiBold
+                            color =
+                                if (isActive) editorialColors.editorialBlack
+                                else editorialColors.onSurface,
+                            fontWeight = FontWeight.SemiBold,
                         )
                     }
                 }
@@ -84,17 +95,21 @@ fun TransitLineList(
 
         item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = EditorialTheme.spacing.gutterMobile, vertical = EditorialTheme.spacing.spaceSm),
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(
+                            horizontal = EditorialTheme.spacing.gutterMobile,
+                            vertical = EditorialTheme.spacing.spaceSm,
+                        ),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
                     text = "Muni routes",
-                    style = EditorialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = editorialColors.editorialPaper
+                    style =
+                        EditorialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = editorialColors.editorialPaper,
                 )
             }
             EditorialDivider()
@@ -103,58 +118,71 @@ fun TransitLineList(
         items(filteredLines, key = { it.id }) { line ->
             val isSelected = line.id == selectedLineId
             val routeColor = getRouteColor(line, editorialColors)
-        
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(if (isSelected) editorialColors.surfaceCard else MaterialTheme.colorScheme.surface)
-                    .clickable { onLineClick(line.id) }
-                    .height(IntrinsicSize.Min),
-                verticalAlignment = Alignment.CenterVertically
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .background(
+                            if (isSelected) editorialColors.surfaceCard
+                            else MaterialTheme.colorScheme.surface,
+                        )
+                        .clickable { onLineClick(line.id) }
+                        .height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(4.dp)
-                        .background(if (isSelected) editorialColors.electricAlert else Color.Transparent)
+                    modifier =
+                        Modifier.fillMaxHeight()
+                            .width(4.dp)
+                            .background(
+                                if (isSelected) editorialColors.electricAlert
+                                else Color.Transparent,
+                            ),
                 )
 
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = EditorialTheme.spacing.gutterMobile, vertical = 14.dp),
+                    modifier =
+                        Modifier.weight(1f)
+                            .padding(
+                                horizontal = EditorialTheme.spacing.gutterMobile,
+                                vertical = 14.dp,
+                            ),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Row(
                         modifier = Modifier.weight(1f, fill = false),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(EditorialTheme.spacing.spaceSm)
+                        horizontalArrangement =
+                            Arrangement.spacedBy(EditorialTheme.spacing.spaceSm),
                     ) {
                         RouteBadge(
                             routeNumber = line.id,
                             backgroundColor = routeColor,
-                            contentColor = editorialColors.editorialPaper
+                            contentColor = editorialColors.editorialPaper,
                         )
                         Text(
                             text = line.name.toTitleCase(),
-                            style = EditorialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                            style =
+                                EditorialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                ),
                             color = editorialColors.editorialPaper,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
 
                     Box(
-                        modifier = Modifier
-                            .background(editorialColors.surfaceContainerHigh)
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                        modifier =
+                            Modifier.background(editorialColors.surfaceContainerHigh)
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
                     ) {
                         Text(
                             text = line.transportMode.toTitleCase(),
                             style = EditorialTheme.typography.labelSmall,
                             color = editorialColors.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
                         )
                     }
                 }

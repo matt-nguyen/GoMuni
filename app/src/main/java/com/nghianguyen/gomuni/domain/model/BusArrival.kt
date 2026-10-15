@@ -7,5 +7,5 @@ data class BusArrival(
     val aimedArrival: String?,
     val vehicleRef: String?,
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
 )

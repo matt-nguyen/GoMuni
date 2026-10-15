@@ -17,8 +17,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class RouteStopsScreenTest {
-    @get:Rule
-    val composeRule = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
     @Test
     fun stopsScreen_whenSelectingStopAndGoingBack_reportsTypedActions() {
@@ -26,9 +25,18 @@ class RouteStopsScreenTest {
         val stop = TransitStop("123", "Market", 37.78, -122.41, null, "38")
         composeRule.setContent {
             GoMuniTheme {
-                RouteStopsScreen(RouteStopsUiState(RouteKey("SF", "38"), stops = listOf(stop),
-                    status = LoadStatus.LOADED), actions::add, false, rememberLazyListState(), null,
-                    map = { Box(it) { Text("Map placeholder") } })
+                RouteStopsScreen(
+                    RouteStopsUiState(
+                        RouteKey("SF", "38"),
+                        stops = listOf(stop),
+                        status = LoadStatus.LOADED,
+                    ),
+                    actions::add,
+                    false,
+                    rememberLazyListState(),
+                    null,
+                    map = { Box(it) { Text("Map placeholder") } },
+                )
             }
         }
         composeRule.onNodeWithText("Market").performClick()

@@ -7,16 +7,22 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 sealed interface TransitNavigation {
     data class OpenRoute(val operatorId: String, val lineId: String) : TransitNavigation
+
     data object Back : TransitNavigation
 }
 
 /** Immediate UI requests are bounded and never replayed after collector restart. */
 class NavigationEvents {
-    private val events = MutableSharedFlow<TransitNavigation>(
-        extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
+    private val events =
+        MutableSharedFlow<TransitNavigation>(
+            extraBufferCapacity = 1,
+            onBufferOverflow = BufferOverflow.DROP_OLDEST,
+        )
     val flow = events.asSharedFlow()
-    fun emit(event: TransitNavigation) { events.tryEmit(event) }
+
+    fun emit(event: TransitNavigation) {
+        events.tryEmit(event)
+    }
 }
 
 /** Only the current destination can originate navigation. Sheets do not change eligibility. */
@@ -24,7 +30,8 @@ internal fun canNavigate(origin: NavKey, current: NavKey?): Boolean = origin == 
 
 /** Reconciles external stop entry to its stops route; the route opens the sheet separately. */
 internal fun navigateToStopRoute(stack: MutableList<NavKey>, target: StopArrivalsTarget): Boolean {
-    if (target.operatorId.isBlank() || target.lineId.isBlank() || target.stopId.isBlank()) return false
+    if (target.operatorId.isBlank() || target.lineId.isBlank() || target.stopId.isBlank())
+        return false
     val parent = TransitStopsKey(target.lineId, target.operatorId)
     val parentIndex = stack.indexOf(parent)
     if (parentIndex >= 0) {

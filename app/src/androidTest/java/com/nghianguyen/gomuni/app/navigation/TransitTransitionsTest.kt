@@ -18,8 +18,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TransitTransitionsTest {
-    @get:Rule
-    val composeRule = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
     @Test
     fun panelNavigation_whenMovingForwardAndBack_slidesInExpectedDirection() {
@@ -33,18 +32,23 @@ class TransitTransitionsTest {
                     transitionSpec = { transitSlideTransition(forward = true) },
                     popTransitionSpec = { transitSlideTransition(forward = false) },
                     predictivePopTransitionSpec = { transitSlideTransition(forward = false) },
-                    entryProvider = entryProvider<NavKey> {
-                        entry<TransitLinesKey> {
-                            Box(Modifier.fillMaxSize().testTag("lines").onGloballyPositioned {
-                                positions["lines"] = it.positionInRoot()
-                            })
-                        }
-                        entry<TransitStopsKey> {
-                            Box(Modifier.fillMaxSize().testTag("stops").onGloballyPositioned {
-                                positions["stops"] = it.positionInRoot()
-                            })
-                        }
-                    },
+                    entryProvider =
+                        entryProvider<NavKey> {
+                            entry<TransitLinesKey> {
+                                Box(
+                                    Modifier.fillMaxSize().testTag("lines").onGloballyPositioned {
+                                        positions["lines"] = it.positionInRoot()
+                                    },
+                                )
+                            }
+                            entry<TransitStopsKey> {
+                                Box(
+                                    Modifier.fillMaxSize().testTag("stops").onGloballyPositioned {
+                                        positions["stops"] = it.positionInRoot()
+                                    },
+                                )
+                            }
+                        },
                 )
             }
         }

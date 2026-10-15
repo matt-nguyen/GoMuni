@@ -7,15 +7,16 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "transit_stops",
-    foreignKeys = [
-        ForeignKey(
-            entity = TransitLineEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["lineId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ],
-    indices = [Index(value = ["lineId"])]
+    foreignKeys =
+        [
+            ForeignKey(
+                entity = TransitLineEntity::class,
+                parentColumns = ["id"],
+                childColumns = ["lineId"],
+                onDelete = ForeignKey.CASCADE,
+            ),
+        ],
+    indices = [Index(value = ["lineId"])],
 )
 data class TransitStopEntity(
     @PrimaryKey val id: String,
@@ -23,5 +24,5 @@ data class TransitStopEntity(
     val latitude: Double,
     val longitude: Double,
     val stopType: String?,
-    val lineId: String
+    val lineId: String,
 )

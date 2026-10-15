@@ -7,9 +7,11 @@ import kotlinx.coroutines.flow.Flow
 
 interface TransitRepository {
     fun getTransitLines(): Flow<List<TransitLine>>
+
     suspend fun refreshTransitLines(operatorId: String, forceRefresh: Boolean = false)
 
     fun getTransitStops(lineId: String): Flow<List<TransitStop>>
+
     suspend fun refreshTransitStops(operatorId: String, lineId: String)
 
     suspend fun getBusArrivals(stopId: String): List<BusArrival>

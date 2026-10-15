@@ -1,16 +1,16 @@
 package com.nghianguyen.gomuni.features.transit.components
 
-import com.nghianguyen.gomuni.features.transit.model.LoadStatus
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
+import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 /**
  * Allocates stable map and panel regions without moving either composition on resize.
+ *
  * @param wide Whether to place the map beside the panel instead of above it.
  * @param modifier Placement within the destination scaffold.
  * @param map Persistent map content.
@@ -47,4 +47,5 @@ internal fun TransitDestinationLayout(
     }
 }
 
-internal val LoadStatus.isLoading get() = this == LoadStatus.LOADING || this == LoadStatus.NOT_LOADED
+internal val LoadStatus.isLoading
+    get() = this == LoadStatus.LOADING || this == LoadStatus.NOT_LOADED

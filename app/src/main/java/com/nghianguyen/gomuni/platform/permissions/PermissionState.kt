@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 
 sealed interface PermissionStatus {
     data object Granted : PermissionStatus
+
     data class Denied(val shouldShowRationale: Boolean) : PermissionStatus
 }
 
@@ -41,20 +42,26 @@ fun rememberPermissionState(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val currentResult by rememberUpdatedState(onPermissionResult)
     fun readStatus(): PermissionStatus =
-        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+        if (
+            ContextCompat.checkSelfPermission(context, permission) ==
+                PackageManager.PERMISSION_GRANTED
+        ) {
             PermissionStatus.Granted
         } else {
-            PermissionStatus.Denied(ActivityCompat.shouldShowRequestPermissionRationale(activity, permission))
+            PermissionStatus.Denied(
+                ActivityCompat.shouldShowRequestPermissionRationale(activity, permission),
+            )
         }
 
     var currentStatus by remember(context, permission) { mutableStateOf(readStatus()) }
     var inProgress by rememberSaveable(permission) { mutableStateOf(false) }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        inProgress = false
-        currentStatus = readStatus()
-        // Completion is distinct from a status change: repeated denials must be delivered.
-        currentResult(currentStatus)
-    }
+    val launcher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+            inProgress = false
+            currentStatus = readStatus()
+            // Completion is distinct from a status change: repeated denials must be delivered.
+            currentResult(currentStatus)
+        }
     DisposableEffect(lifecycle, context, permission) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) currentStatus = readStatus()
@@ -64,8 +71,12 @@ fun rememberPermissionState(
     }
     return remember(context, permission, launcher) {
         object : PermissionState {
-            override val status get() = currentStatus
-            override val isRequestInProgress get() = inProgress
+            override val status
+                get() = currentStatus
+
+            override val isRequestInProgress
+                get() = inProgress
+
             override fun launchPermissionRequest() {
                 if (inProgress) return
                 currentStatus = readStatus()
@@ -98,13 +109,17 @@ fun rememberPostNotificationPermissionState(
         object : PermissionState {
             override val status = PermissionStatus.Granted
             override val isRequestInProgress = false
-            override fun launchPermissionRequest() { currentResult(PermissionStatus.Granted) }
+
+            override fun launchPermissionRequest() {
+                currentResult(PermissionStatus.Granted)
+            }
         }
     }
 }
 
-private tailrec fun Context.findActivity(): Activity = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> error("PermissionState requires an Activity context")
-}
+private tailrec fun Context.findActivity(): Activity =
+    when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> error("PermissionState requires an Activity context")
+    }

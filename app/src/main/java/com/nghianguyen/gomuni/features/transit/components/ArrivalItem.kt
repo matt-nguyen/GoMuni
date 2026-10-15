@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.nghianguyen.gomuni.domain.model.BusArrival
 import com.nghianguyen.gomuni.ui.components.EditorialCard
-import com.nghianguyen.gomuni.features.transit.components.RouteBadge
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 import java.time.Instant
 import java.time.ZoneId
@@ -25,37 +24,40 @@ fun ArrivalItem(
     routeColor: Color,
     onTrackClick: () -> Unit,
     trackingEnabled: Boolean = true,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val editorialColors = EditorialTheme.colors
     EditorialCard(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
                 modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RouteBadge(
                     routeNumber = arrival.lineRef,
                     backgroundColor = routeColor,
-                    contentColor = editorialColors.editorialPaper
+                    contentColor = editorialColors.editorialPaper,
                 )
                 Spacer(modifier = Modifier.width(EditorialTheme.spacing.spaceMd))
                 Column {
                     Text(
                         text = arrival.lineName.toTitleCase(),
-                        style = EditorialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                        color = editorialColors.editorialPaper
+                        style =
+                            EditorialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                            ),
+                        color = editorialColors.editorialPaper,
                     )
                     Text(
                         text = "Vehicle: ${arrival.vehicleRef ?: "N/A"}",
                         style = EditorialTheme.typography.labelSmall,
-                        color = editorialColors.onSurfaceVariant
+                        color = editorialColors.onSurfaceVariant,
                     )
                 }
             }
@@ -64,22 +66,23 @@ fun ArrivalItem(
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Track Bus",
-                        tint = editorialColors.editorialPaper
+                        tint = editorialColors.editorialPaper,
                     )
                 }
                 Spacer(modifier = Modifier.width(EditorialTheme.spacing.spaceSm))
                 Column(horizontalAlignment = Alignment.End) {
-                    val timeStr = formatArrivalTime(arrival.expectedArrival ?: arrival.aimedArrival ?: "")
+                    val timeStr =
+                        formatArrivalTime(arrival.expectedArrival ?: arrival.aimedArrival ?: "")
                     Text(
                         text = timeStr,
                         style = EditorialTheme.typography.titleLarge,
                         color = editorialColors.signalChartreuse,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = if (timeStr.contains(":")) "TIME" else "MIN",
                         style = EditorialTheme.typography.labelSmall,
-                        color = editorialColors.signalChartreuse
+                        color = editorialColors.signalChartreuse,
                     )
                 }
             }
@@ -94,12 +97,13 @@ private fun formatArrivalTime(isoTime: String): String {
         val now = Instant.now()
         val duration = java.time.Duration.between(now, instant)
         val minutes = max(0, duration.toMinutes())
-        
+
         if (minutes in 0..60) {
             java.lang.String.format(java.util.Locale.US, "%02d", minutes)
         } else {
-            val formatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
-                .withZone(ZoneId.systemDefault())
+            val formatter =
+                DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+                    .withZone(ZoneId.systemDefault())
             formatter.format(instant)
         }
     } catch (e: Exception) {

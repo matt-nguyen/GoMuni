@@ -8,9 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.nghianguyen.gomuni.tracking.BusTrackingService
 import com.nghianguyen.gomuni.app.navigation.StopArrivalsTarget
 import com.nghianguyen.gomuni.app.navigation.TransitNavigationHost
+import com.nghianguyen.gomuni.tracking.BusTrackingService
 import com.nghianguyen.gomuni.ui.theme.GoMuniTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -22,9 +22,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Restored stops state already contains a consumed cold-launch sheet target.
-        pendingStopNavigation = savedInstanceState?.getString("pending_stop")?.let { stopId ->
-            savedInstanceState.getString("pending_line")?.let { StopArrivalsTarget(it, stopId) }
-        } ?: if (savedInstanceState == null) trackingTarget(intent) else null
+        pendingStopNavigation =
+            savedInstanceState?.getString("pending_stop")?.let { stopId ->
+                savedInstanceState.getString("pending_line")?.let { StopArrivalsTarget(it, stopId) }
+            } ?: if (savedInstanceState == null) trackingTarget(intent) else null
         setContent {
             GoMuniTheme {
                 TransitNavigationHost(
@@ -50,8 +51,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun trackingTarget(intent: Intent?): StopArrivalsTarget? {
-        val stopId = intent?.getStringExtra(BusTrackingService.EXTRA_STOP_ID)?.takeIf { it.isNotBlank() } ?: return null
-        val lineId = intent.getStringExtra(BusTrackingService.EXTRA_LINE_REF)?.takeIf { it.isNotBlank() } ?: return null
+        val stopId =
+            intent?.getStringExtra(BusTrackingService.EXTRA_STOP_ID)?.takeIf { it.isNotBlank() }
+                ?: return null
+        val lineId =
+            intent.getStringExtra(BusTrackingService.EXTRA_LINE_REF)?.takeIf { it.isNotBlank() }
+                ?: return null
         return StopArrivalsTarget(lineId, stopId)
     }
 }
