@@ -11,10 +11,13 @@ import com.nghianguyen.gomuni.domain.util.ErrorLogger
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 
+// Translate storage, parsing and transport failures at the data boundary; preserve cancellation.
+@Suppress("TooGenericExceptionCaught")
 @Singleton
 class TransitRepositoryImpl
 @Inject
@@ -23,9 +26,6 @@ constructor(
     private val localDataSource: TransitLocalDataSource,
     private val errorLogger: ErrorLogger,
 ) : TransitRepository {
-
-    // 24-hour cache expiration
-    private val CACHE_EXPIRATION_MS = 24 * 60 * 60 * 1000L
 
     override fun getTransitLines(): Flow<List<TransitLine>> {
         return localDataSource.getTransitLines()
@@ -36,7 +36,7 @@ constructor(
         val currentTime = System.currentTimeMillis()
         val isCacheEmpty = localDataSource.getTransitLines().first().isEmpty()
 
-        if (forceRefresh || isCacheEmpty || (currentTime - lastSync) > CACHE_EXPIRATION_MS) {
+        if (forceRefresh || isCacheEmpty || (currentTime - lastSync) > cacheExpirationMillis) {
             try {
                 val remoteLines = remoteDataSource.getTransitLines(operatorId)
 
@@ -46,6 +46,8 @@ constructor(
 
                 // Save the new sync time in DataStore
                 localDataSource.saveLastSyncTime(currentTime)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 handleError(
                     e,
@@ -67,6 +69,8 @@ constructor(
 
             localDataSource.deleteStopsForLine(lineId)
             localDataSource.saveStopsForLine(lineId, remoteStops)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             handleError(
                 e,
@@ -80,6 +84,8 @@ constructor(
     override suspend fun getBusArrivals(stopId: String): List<BusArrival> {
         return try {
             remoteDataSource.getBusArrivals(stopId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             handleError(
                 e,
@@ -97,13 +103,13 @@ constructor(
         metadata: Map<String, String>,
         shouldRethrow: Boolean,
     ) {
-        if (e is kotlinx.coroutines.CancellationException) throw e
         // Map technical exception to domain error
         val domainError =
             when (e) {
                 is IOException -> TransitError.Network
                 is HttpException -> {
-                    if (e.code() == 404) TransitError.NotFound else TransitError.Unexpected
+                    if (e.code() == java.net.HttpURLConnection.HTTP_NOT_FOUND) TransitError.NotFound
+                    else TransitError.Unexpected
                 }
                 else -> TransitError.Unexpected
             }
@@ -118,3 +124,5 @@ constructor(
         if (shouldRethrow) throw domainError
     }
 }
+
+private val cacheExpirationMillis = java.time.Duration.ofDays(1).toMillis()

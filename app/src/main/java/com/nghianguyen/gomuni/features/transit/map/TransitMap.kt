@@ -1,8 +1,12 @@
 package com.nghianguyen.gomuni.features.transit.map
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,8 +51,8 @@ internal fun rememberTransitMapViewport(
 ): com.mapbox.maps.extension.compose.animation.viewport.MapViewportState {
     val viewport = rememberMapViewportState {
         setCameraOptions {
-            center(Point.fromLngLat(-122.4194, 37.7749))
-            zoom(11.0)
+            center(Point.fromLngLat(SAN_FRANCISCO_LONGITUDE, SAN_FRANCISCO_LATITUDE))
+            zoom(OVERVIEW_ZOOM)
         }
     }
     val focusedStop = if (focusArrivals) data.stops.find { it.id == selectedStopId } else null
@@ -62,16 +66,17 @@ internal fun rememberTransitMapViewport(
     LaunchedEffect(cameraKey, focusedStop?.id, focusArrivals, bounds.isNotEmpty()) {
         if (routeId == null) {
             viewport.setCameraOptions {
-                center(Point.fromLngLat(-122.4194, 37.7749))
-                zoom(11.0)
+                center(Point.fromLngLat(SAN_FRANCISCO_LONGITUDE, SAN_FRANCISCO_LATITUDE))
+                zoom(OVERVIEW_ZOOM)
             }
         } else if (bounds.isNotEmpty()) {
             viewport.flyTo(
                 viewport.cameraForCoordinates(
                     bounds,
-                    coordinatesPadding = EdgeInsets(100.0, 100.0, 100.0, 100.0),
+                    coordinatesPadding =
+                        EdgeInsets(CAMERA_PADDING, CAMERA_PADDING, CAMERA_PADDING, CAMERA_PADDING),
                 ),
-                MapAnimationOptions.mapAnimationOptions { duration(1000) },
+                MapAnimationOptions.mapAnimationOptions { duration(CAMERA_ANIMATION_MILLIS) },
             )
         }
     }
@@ -103,27 +108,10 @@ internal fun TransitMapRoute(
             modifier = Modifier.fillMaxSize(),
             mapViewportState = viewport,
             style = {
-                MapboxStandardStyle(
-                    standardStyleState =
-                        rememberStandardStyleState {
-                            configurationsState.apply {
-                                lightPreset = LightPresetValue.NIGHT
-                                showPointOfInterestLabels = BooleanValue(false)
-                            }
-                        },
-                )
+                TransitMapStyle()
             },
         ) {
-            MapEffect(locationPermissionGranted) { mapView ->
-                mapView.location.updateSettings {
-                    enabled = locationPermissionGranted
-                    pulsingEnabled = true
-                    locationPuck =
-                        LocationPuck2D(
-                            topImage = ImageHolder.from(R.drawable.current_location_icon),
-                        )
-                }
-            }
+            ConfigureUserLocation(locationPermissionGranted)
             data.stops.forEach { stop ->
                 key(stop.id) {
                     val selected = stop.id == selectedStopId
@@ -134,7 +122,8 @@ internal fun TransitMapRoute(
                         }
                         iconImage = stopIcon
                         iconColor = if (selected) colors.signalChartreuse else routeColor
-                        iconOpacity = if (focusArrivals && !selected) 0.3 else 1.0
+                        iconOpacity =
+                            if (focusArrivals && !selected) UNFOCUSED_STOP_OPACITY else 1.0
                     }
                 }
             }
@@ -160,4 +149,38 @@ internal fun TransitMapRoute(
                 )
             }
     }
+}
+
+private const val SAN_FRANCISCO_LONGITUDE = -122.4194
+private const val SAN_FRANCISCO_LATITUDE = 37.7749
+private const val OVERVIEW_ZOOM = 11.0
+private const val CAMERA_PADDING = 100.0
+private const val CAMERA_ANIMATION_MILLIS = 1_000L
+private const val UNFOCUSED_STOP_OPACITY = 0.3
+
+@Composable
+private fun ConfigureUserLocation(locationPermissionGranted: Boolean) {
+    MapEffect(locationPermissionGranted) { mapView ->
+        mapView.location.updateSettings {
+            enabled = locationPermissionGranted
+            pulsingEnabled = true
+            locationPuck =
+                LocationPuck2D(
+                    topImage = ImageHolder.from(R.drawable.current_location_icon),
+                )
+        }
+    }
+}
+
+@Composable
+private fun TransitMapStyle() {
+    MapboxStandardStyle(
+        standardStyleState =
+            rememberStandardStyleState {
+                configurationsState.apply {
+                    lightPreset = LightPresetValue.NIGHT
+                    showPointOfInterestLabels = BooleanValue(false)
+                }
+            },
+    )
 }

@@ -13,9 +13,17 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+// This UI boundary retains safe error state for unexpected repository/stream failures too.
+@Suppress("TooGenericExceptionCaught")
 @HiltViewModel
 class TransitLinesViewModel
 @Inject
@@ -44,8 +52,9 @@ constructor(
                 repository.getTransitLines().collect { lines ->
                     state.update { it.copy(lines = sort(lines, it.sortOption)) }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                if (error is CancellationException) throw error
                 state.update {
                     it.copy(status = LoadStatus.FAILED, error = transitFailureMessage(error))
                 }
@@ -96,8 +105,9 @@ constructor(
                         error = null,
                     )
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                if (error is CancellationException) throw error
                 state.update {
                     it.copy(
                         status = LoadStatus.FAILED,

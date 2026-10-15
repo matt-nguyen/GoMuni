@@ -2,7 +2,8 @@ package com.nghianguyen.gomuni.features.transit.map
 
 import com.nghianguyen.gomuni.domain.model.BusArrival
 import com.nghianguyen.gomuni.domain.model.TransitStop
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TransitMapDataTest {

@@ -22,6 +22,7 @@ val transitApiKey = localProperties.getProperty("transit_api_key") ?: "YOUR_API_
 detekt {
     toolVersion = libs.versions.detekt.get()
     buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
     source.setFrom("src/main/java", "src/test/java", "src/androidTest/java")
 }
 

@@ -1,0 +1,19 @@
+# Keep default rules; adapt only conventions that differ for Compose and tests.
+naming:
+  FunctionNaming:
+    ignoreAnnotated: ['Composable']
+
+complexity:
+  LongParameterList:
+    # Explicit state, callbacks, modifiers and slots are the Compose API contract.
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    # Keep each integration scenario together; production functions retain the limit.
+    ignoreAnnotated: ['Test']
+
+style:
+  UnusedPrivateMember:
+    ignoreAnnotated: ['Preview']
+  MagicNumber:
+    # Theme values are the named design tokens themselves, not business constants.
+    excludes: ['**/ui/theme/**', '**/*Previews.kt', '**/test/**', '**/androidTest/**']

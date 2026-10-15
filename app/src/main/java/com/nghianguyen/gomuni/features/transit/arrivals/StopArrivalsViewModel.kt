@@ -11,9 +11,17 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
+// This UI boundary retains safe error state for unexpected repository/stream failures too.
+@Suppress("TooGenericExceptionCaught")
 @HiltViewModel(assistedFactory = StopArrivalsViewModel.Factory::class)
 class StopArrivalsViewModel
 @AssistedInject
@@ -72,14 +80,17 @@ constructor(
         when (action) {
             StopArrivalsAction.Dismiss -> Unit // The route owns sheet dismissal.
             StopArrivalsAction.Refresh -> refresh()
-            is StopArrivalsAction.Track -> {
-                if (request.value != null) return
-                val selectedStop = stop ?: return
-                val prediction =
-                    state.value.predictions.find {
-                        ArrivalPredictionKey.from(it) == action.prediction
-                    } ?: return
-                val target =
+            is StopArrivalsAction.Track -> track(action.prediction)
+        }
+    }
+
+    private fun track(predictionKey: ArrivalPredictionKey) {
+        if (request.value != null) return
+        val selectedStop = stop ?: return
+        state.value.predictions
+            .find { ArrivalPredictionKey.from(it) == predictionKey }
+            ?.let { prediction ->
+                request.value =
                     TrackingRequest(
                         selectedStop.id,
                         selectedStop.name,
@@ -87,9 +98,7 @@ constructor(
                         prediction.lineName,
                         prediction.vehicleRef,
                     )
-                request.value = target
             }
-        }
     }
 
     fun takeTrackingRequest(): TrackingRequest? {
@@ -122,8 +131,9 @@ constructor(
                         )
                     }
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                if (error is CancellationException) throw error
                 if (version == generation)
                     state.update {
                         it.copy(

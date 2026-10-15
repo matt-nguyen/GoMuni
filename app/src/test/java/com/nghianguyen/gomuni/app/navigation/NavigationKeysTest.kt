@@ -1,7 +1,7 @@
 package com.nghianguyen.gomuni.app.navigation
 
 import kotlinx.serialization.json.Json
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class NavigationKeysTest {

@@ -53,10 +53,8 @@ class MainActivity : ComponentActivity() {
     private fun trackingTarget(intent: Intent?): StopArrivalsTarget? {
         val stopId =
             intent?.getStringExtra(BusTrackingService.EXTRA_STOP_ID)?.takeIf { it.isNotBlank() }
-                ?: return null
         val lineId =
-            intent.getStringExtra(BusTrackingService.EXTRA_LINE_REF)?.takeIf { it.isNotBlank() }
-                ?: return null
-        return StopArrivalsTarget(lineId, stopId)
+            intent?.getStringExtra(BusTrackingService.EXTRA_LINE_REF)?.takeIf { it.isNotBlank() }
+        return if (stopId != null && lineId != null) StopArrivalsTarget(lineId, stopId) else null
     }
 }

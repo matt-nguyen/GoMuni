@@ -1,7 +1,12 @@
 package com.nghianguyen.gomuni.features.tracking
 
 import android.content.Context
-import androidx.compose.runtime.*
+import android.util.Log
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -57,18 +62,24 @@ internal fun TrackingEffects(
     }
 }
 
+// Platform launchers can throw different RuntimeException subclasses across Android versions.
+@Suppress("TooGenericExceptionCaught")
 private fun requestNotificationPermission(
     permission: PermissionState,
     onAction: (TrackingAction) -> Unit,
 ) {
     try {
         permission.launchPermissionRequest()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
     } catch (error: RuntimeException) {
-        if (error is CancellationException) throw error
+        Log.e("TrackingEffects", "Unable to request notification permission", error)
         onAction(TrackingAction.StartupFailed)
     }
 }
 
+// Report a failed launch without losing the pending UI workflow; cancellation still propagates.
+@Suppress("TooGenericExceptionCaught")
 private fun startTrackingService(
     context: Context,
     request: TrackingRequest,
@@ -78,8 +89,10 @@ private fun startTrackingService(
         try {
             launchTracking(context, request)
             true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: RuntimeException) {
-            if (error is CancellationException) throw error
+            Log.e("TrackingEffects", "Unable to launch tracking service", error)
             false
         }
     onAction(TrackingAction.LaunchResolved(accepted))

@@ -1,6 +1,9 @@
 package com.nghianguyen.gomuni.features.transit.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
@@ -34,8 +37,10 @@ internal fun TransitDestinationLayout(
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val gap = if (wide) columnGap.roundToPx().coerceAtMost(width) else 0
-        val mapWidth = if (wide) ((width - gap) * 5 / 8) else width
-        val mapHeight = if (wide) height else (height * 0.4f).toInt()
+        val mapWidth =
+            if (wide) ((width - gap) * WIDE_MAP_WIDTH_NUMERATOR / WIDE_MAP_WIDTH_DENOMINATOR)
+            else width
+        val mapHeight = if (wide) height else (height * COMPACT_MAP_HEIGHT_FRACTION).toInt()
         val panelWidth = if (wide) width - gap - mapWidth else width
         val panelHeight = if (wide) height else height - mapHeight
         val map = measurables[0].measure(Constraints.fixed(mapWidth, mapHeight))
@@ -49,3 +54,7 @@ internal fun TransitDestinationLayout(
 
 internal val LoadStatus.isLoading
     get() = this == LoadStatus.LOADING || this == LoadStatus.NOT_LOADED
+
+private const val WIDE_MAP_WIDTH_NUMERATOR = 5
+private const val WIDE_MAP_WIDTH_DENOMINATOR = 8
+private const val COMPACT_MAP_HEIGHT_FRACTION = 0.4f

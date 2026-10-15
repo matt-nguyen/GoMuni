@@ -15,7 +15,12 @@ internal fun AnimatedContentTransitionScope<*>.transitSlideTransition(
         else AnimatedContentTransitionScope.SlideDirection.Right
     return slideIntoContainer(
         direction,
-        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        animationSpec = tween(TRANSIT_SLIDE_DURATION_MILLIS, easing = FastOutSlowInEasing),
     ) togetherWith
-        slideOutOfContainer(direction, animationSpec = tween(300, easing = FastOutSlowInEasing))
+        slideOutOfContainer(
+            direction,
+            animationSpec = tween(TRANSIT_SLIDE_DURATION_MILLIS, easing = FastOutSlowInEasing),
+        )
 }
+
+private const val TRANSIT_SLIDE_DURATION_MILLIS = 300

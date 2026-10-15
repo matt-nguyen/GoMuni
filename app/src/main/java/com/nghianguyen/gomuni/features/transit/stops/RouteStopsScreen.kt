@@ -1,18 +1,21 @@
 package com.nghianguyen.gomuni.features.transit.stops
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material3.*
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.nghianguyen.gomuni.R
-import com.nghianguyen.gomuni.features.transit.components.*
 import com.nghianguyen.gomuni.features.transit.components.TransitDestinationLayout
 import com.nghianguyen.gomuni.features.transit.components.TransitExplorerTopBar
+import com.nghianguyen.gomuni.features.transit.components.TransitStopList
+import com.nghianguyen.gomuni.features.transit.components.getRouteColor
 import com.nghianguyen.gomuni.features.transit.components.isLoading
+import com.nghianguyen.gomuni.features.transit.components.toTitleCase
 import com.nghianguyen.gomuni.features.transit.routes.RoutesUiState
-import com.nghianguyen.gomuni.ui.components.*
 import com.nghianguyen.gomuni.ui.components.TransitLoadContent
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 

@@ -1,7 +1,14 @@
 package com.nghianguyen.gomuni.features.transit.stops
 
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nghianguyen.gomuni.app.navigation.CollectNavigation
@@ -11,14 +18,13 @@ import com.nghianguyen.gomuni.app.navigation.TransitStopsKey
 import com.nghianguyen.gomuni.features.tracking.TrackingRequest
 import com.nghianguyen.gomuni.features.transit.arrivals.ArrivalsSheetScope
 import com.nghianguyen.gomuni.features.transit.arrivals.StopArrivalsRoute
-import com.nghianguyen.gomuni.features.transit.components.*
+import com.nghianguyen.gomuni.features.transit.components.getRouteColor
 import com.nghianguyen.gomuni.features.transit.map.ArrivalMapProjection
 import com.nghianguyen.gomuni.features.transit.map.TransitMapData
 import com.nghianguyen.gomuni.features.transit.model.RouteKey
 import com.nghianguyen.gomuni.features.transit.navigation.SharedTransitMapState
 import com.nghianguyen.gomuni.features.transit.navigation.TransitMapPresentation
 import com.nghianguyen.gomuni.features.transit.navigation.rememberTransitMapBinding
-import com.nghianguyen.gomuni.ui.components.*
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 /**
@@ -48,13 +54,7 @@ internal fun RouteStopsRoute(
         factory.create(RouteKey(key.operatorId, key.lineId))
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val currentHandled by rememberUpdatedState(onStopNavigationHandled)
-    LaunchedEffect(pendingStopNavigation) {
-        pendingStopNavigation?.let { target ->
-            viewModel.onAction(RouteStopsAction.OpenArrivals(target.stopId))
-            currentHandled()
-        }
-    }
+    HandlePendingStopNavigation(pendingStopNavigation, viewModel::onAction, onStopNavigationHandled)
     var mapArrivals by remember(key) { mutableStateOf<ArrivalMapProjection?>(null) }
     val selectedStopId = state.selectedStopId
     val listState = rememberLazyListState()
@@ -104,4 +104,19 @@ internal fun RouteStopsRoute(
                 )
             }
         }
+}
+
+@Composable
+private fun HandlePendingStopNavigation(
+    pendingStopNavigation: StopArrivalsTarget?,
+    onAction: (RouteStopsAction) -> Unit,
+    onStopNavigationHandled: () -> Unit,
+) {
+    val currentHandled by rememberUpdatedState(onStopNavigationHandled)
+    LaunchedEffect(pendingStopNavigation) {
+        pendingStopNavigation?.let { target ->
+            onAction(RouteStopsAction.OpenArrivals(target.stopId))
+            currentHandled()
+        }
+    }
 }
