@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
-import com.nghianguyen.gomuni.app.navigation.NavigationEvents
-import com.nghianguyen.gomuni.app.navigation.TransitNavigation
 import com.nghianguyen.gomuni.features.tracking.TrackingRequest
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.model.transitFailureMessage
@@ -24,8 +22,6 @@ class StopArrivalsViewModel @AssistedInject constructor(
     @AssistedFactory interface Factory { fun create(stopId: String): StopArrivalsViewModel }
     private val state = MutableStateFlow(StopArrivalsUiState(stopId))
     val uiState = state.asStateFlow()
-    private val navigation = NavigationEvents()
-    val navigationEvents = navigation.flow
     private var arrivalsJob: Job? = null
     private var generation = 0L
     // The parent route supplies authoritative context; this VM never refreshes its parent's stops.
@@ -60,7 +56,7 @@ class StopArrivalsViewModel @AssistedInject constructor(
 
     fun onAction(action: StopArrivalsAction) {
         when (action) {
-            StopArrivalsAction.Back -> navigation.emit(TransitNavigation.Back)
+            StopArrivalsAction.Dismiss -> Unit // The route owns sheet dismissal.
             StopArrivalsAction.Refresh -> refresh()
             is StopArrivalsAction.Track -> {
                 if (request.value != null) return

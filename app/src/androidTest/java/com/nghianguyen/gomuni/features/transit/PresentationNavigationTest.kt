@@ -1,33 +1,31 @@
 package com.nghianguyen.gomuni.features.transit
 
-import com.nghianguyen.gomuni.features.transit.navigation.TRANSIT_DESTINATION
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Text
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation3.runtime.*
 import androidx.navigation3.ui.NavDisplay
+import androidx.test.espresso.Espresso
 import com.nghianguyen.gomuni.domain.model.TransitStop
-import com.nghianguyen.gomuni.app.navigation.StopArrivalsKey
-import com.nghianguyen.gomuni.app.navigation.TransitLinesKey
-import com.nghianguyen.gomuni.app.navigation.TransitNavigation
-import com.nghianguyen.gomuni.app.navigation.TransitStopsKey
-import com.nghianguyen.gomuni.app.navigation.navigate
+import com.nghianguyen.gomuni.app.navigation.*
 import com.nghianguyen.gomuni.ui.theme.GoMuniTheme
+import com.nghianguyen.gomuni.features.transit.arrivals.ArrivalsSheetScope
+import com.nghianguyen.gomuni.features.transit.arrivals.StopArrivalsSheet
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.model.RouteKey
-import com.nghianguyen.gomuni.features.transit.navigation.ArrivalsSceneStrategy
-import com.nghianguyen.gomuni.features.transit.navigation.LocalArrivalsContent
-import com.nghianguyen.gomuni.features.transit.navigation.LocalStopsContext
 import com.nghianguyen.gomuni.features.transit.stops.RouteStopsAction
 import com.nghianguyen.gomuni.features.transit.stops.RouteStopsScreen
 import com.nghianguyen.gomuni.features.transit.stops.RouteStopsUiState
@@ -55,71 +53,105 @@ class PresentationNavigationTest {
         }
     }
 
-    @Test fun entryViewModelsRemainIndependentAcrossSceneAndAreClearedOnPop() {
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Test fun sheetsHaveIndependentScopesAndDismissWithoutPoppingTheStopsRoute() {
         lateinit var stack: NavBackStack<NavKey>
         val models = mutableMapOf<NavKey, EntryModel>()
+        val opened = mutableStateOf<String?>(null)
+        lateinit var sheetModel: EntryModel
+        lateinit var sheetLifecycle: Lifecycle
         val stops = TransitStopsKey("38")
-        val arrivals = StopArrivalsKey("38", "123")
         compose.setContent {
-            stack = rememberNavBackStack(TransitLinesKey)
-            NavDisplay(backStack = stack,
-                sceneStrategies = listOf(ArrivalsSceneStrategy()),
-                entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(),
-                    rememberViewModelStoreNavEntryDecorator()),
-                entryProvider = entryProvider<NavKey> {
-                    entry<TransitLinesKey> {
-                        models[it] = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
-                        Text("Routes")
-                    }
-                    entry<TransitStopsKey>(metadata = { mapOf(TRANSIT_DESTINATION to it) }) {
-                        models[it] = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
-                        CompositionLocalProvider(LocalStopsContext provides RouteStopsUiState(RouteKey("SF", it.lineId))) {
-                            Column {
-                                Text("Stops")
-                                LocalArrivalsContent.current?.invoke()
+            GoMuniTheme {
+                stack = rememberNavBackStack(TransitLinesKey)
+                NavDisplay(
+                    backStack = stack,
+                    entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator(),
+                        rememberViewModelStoreNavEntryDecorator()),
+                    entryProvider = entryProvider<NavKey> {
+                        entry<TransitLinesKey> {
+                            models[it] = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
+                            Text("Routes")
+                        }
+                        entry<TransitStopsKey> {
+                            models[it] = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
+                            Text("Stops")
+                            opened.value?.let { stopId ->
+                                ArrivalsSheetScope(stopId) {
+                                    sheetModel = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
+                                    sheetLifecycle = LocalLifecycleOwner.current.lifecycle
+                                    StopArrivalsSheet(rememberModalBottomSheetState(), { opened.value = null }) {
+                                        Column(Modifier.height(200.dp)) {
+                                            Text("Arrivals $stopId")
+                                            TextButton(onClick = { opened.value = null }) { Text("Close test sheet") }
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                    entry<StopArrivalsKey>(metadata = { mapOf(TRANSIT_DESTINATION to it) }) {
-                        models[it] = viewModel(factory = viewModelFactory { initializer { EntryModel() } })
-                        Text("Arrivals for ${LocalStopsContext.current?.route?.lineId}")
-                    }
-                })
+                    },
+                )
+            }
         }
         compose.runOnIdle { navigate(stack, TransitNavigation.OpenRoute("SF", "38")) }
         compose.onNodeWithText("Stops").assertExists()
         lateinit var parentModel: EntryModel
         compose.runOnIdle {
             parentModel = models.getValue(stops)
-            navigate(stack, TransitNavigation.OpenStop("SF", "38", "123"))
+            opened.value = "123"
         }
-        compose.onNodeWithText("Arrivals for 38").assertExists()
+        compose.onNodeWithText("Arrivals 123").assertExists()
+        lateinit var first: EntryModel
+        lateinit var firstLifecycle: Lifecycle
         compose.runOnIdle {
-            assertSame(parentModel, models.getValue(stops))
-            assertNotSame(parentModel, models.getValue(arrivals))
-            navigate(stack, TransitNavigation.Back)
+            first = sheetModel
+            firstLifecycle = sheetLifecycle
+            assertNotSame(parentModel, first)
         }
-        compose.waitUntil { models.getValue(arrivals).cleared }
+        Espresso.pressBack()
+        compose.waitUntil { first.cleared }
         compose.runOnIdle {
+            assertEquals(Lifecycle.State.DESTROYED, firstLifecycle.currentState)
+            assertEquals(stops, stack.last())
+            assertEquals(2, stack.size)
             assertFalse(parentModel.cleared)
+            opened.value = "123"
+        }
+        compose.onNodeWithText("Arrivals 123").assertExists()
+        lateinit var reopened: EntryModel
+        compose.runOnIdle {
+            reopened = sheetModel
+            assertNotSame(first, reopened)
+            opened.value = "456"
+        }
+        compose.onNodeWithText("Arrivals 456").assertExists()
+        compose.runOnIdle {
+            assertTrue(reopened.cleared)
+            assertNotSame(reopened, sheetModel)
+            assertFalse(parentModel.cleared)
+        }
+        compose.onNodeWithText("Close test sheet").performClick()
+        compose.waitUntil { sheetModel.cleared }
+        compose.runOnIdle {
+            assertEquals(stops, stack.last())
             navigate(stack, TransitNavigation.Back)
         }
         compose.waitUntil { parentModel.cleared }
     }
 
-    @Test fun navigationHistoryRestoresWithoutAddingDuplicateEntries() {
+    @Test fun externalRouteHistoryRestoresWithoutAddingSheetEntries() {
         val restoration = StateRestorationTester(compose)
         lateinit var stack: NavBackStack<NavKey>
         restoration.setContent {
             stack = rememberNavBackStack(TransitLinesKey)
             Text(stack.last().toString())
         }
-        compose.runOnIdle { navigate(stack, TransitNavigation.OpenStop("SF", "38", "123")) }
+        compose.runOnIdle { navigateToStopRoute(stack, StopArrivalsTarget("38", "123")) }
         restoration.emulateSavedInstanceStateRestore()
         compose.runOnIdle {
-            assertEquals(listOf(TransitLinesKey, TransitStopsKey("38"), StopArrivalsKey("38", "123")), stack)
-            navigate(stack, TransitNavigation.OpenStop("SF", "38", "123"))
-            assertEquals(3, stack.size)
+            assertEquals(listOf(TransitLinesKey, TransitStopsKey("38")), stack)
+            navigateToStopRoute(stack, StopArrivalsTarget("38", "123"))
+            assertEquals(2, stack.size)
         }
     }
 

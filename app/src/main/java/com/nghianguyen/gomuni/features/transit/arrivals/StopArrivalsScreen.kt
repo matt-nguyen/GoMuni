@@ -24,7 +24,7 @@ fun StopArrivalsScreen(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth()) {
-        TextButton(onClick = { onAction(StopArrivalsAction.Back) }) { Text(stringResource(R.string.close_arrivals)) }
+        TextButton(onClick = { onAction(StopArrivalsAction.Dismiss) }) { Text(stringResource(R.string.close_arrivals)) }
         val stop = uiState.stop
         if (stop == null) {
             if (uiState.error != null) Text(uiState.error, color = EditorialTheme.colors.electricAlert,

@@ -106,6 +106,47 @@ class PresentationViewModelsTest {
         assertEquals(LoadStatus.LOADED, vm.uiState.value.status)
     }
 
+    @Test fun stopSelectionOpensAndDismissesASheetWithoutNavigation() = runTest(dispatcher) {
+        repository.stops.value = listOf(testStop)
+        val saved = SavedStateHandle()
+        val vm = retain(RouteStopsViewModel(repository, saved, route))
+        runCurrent()
+        val events = mutableListOf<TransitNavigation>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.navigationEvents.toList(events) }
+        vm.onAction(RouteStopsAction.SelectStop("missing"))
+        assertNull(vm.uiState.value.arrivalsStopId)
+        vm.onAction(RouteStopsAction.SelectStop(testStop.id))
+        vm.onAction(RouteStopsAction.SelectStop(testStop.id))
+        assertEquals(testStop.id, vm.uiState.value.arrivalsStopId)
+        assertEquals(testStop.id, saved.get<String>("arrivals_stop"))
+        assertTrue(events.isEmpty())
+        vm.onAction(RouteStopsAction.DismissArrivals("obsolete"))
+        assertEquals(testStop.id, vm.uiState.value.arrivalsStopId)
+        vm.onAction(RouteStopsAction.Back)
+        assertNull(vm.uiState.value.arrivalsStopId)
+        assertEquals(testStop.id, vm.uiState.value.selectedStopId)
+        assertNull(saved.get<String>("arrivals_stop"))
+        assertTrue(events.isEmpty())
+        vm.onAction(RouteStopsAction.Back)
+        assertEquals(listOf(TransitNavigation.Back), events)
+    }
+
+    @Test fun externalSheetSelectionRestoresAndRejectsOldDismissals() = runTest(dispatcher) {
+        val saved = SavedStateHandle()
+        val vm = retain(RouteStopsViewModel(repository, saved, route))
+        runCurrent()
+        vm.onAction(RouteStopsAction.OpenArrivals("123"))
+        vm.onAction(RouteStopsAction.OpenArrivals("456"))
+        vm.onAction(RouteStopsAction.DismissArrivals("123"))
+        val restored = retain(RouteStopsViewModel(repository, saved, route))
+        assertEquals("456", restored.uiState.value.arrivalsStopId)
+        assertEquals("456", restored.uiState.value.selectedStopId)
+        restored.onAction(RouteStopsAction.DismissArrivals("456"))
+        restored.onAction(RouteStopsAction.OpenArrivals(""))
+        assertNull(restored.uiState.value.arrivalsStopId)
+        assertEquals("456", restored.uiState.value.selectedStopId)
+    }
+
     @Test fun arrivalsDoNotRefreshParentAndRetainPredictionsOnFailure() = runTest(dispatcher) {
         repository.arrivals = { listOf(testArrival) }
         val vm = retain(StopArrivalsViewModel(repository, testStop.id))

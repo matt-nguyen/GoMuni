@@ -28,12 +28,21 @@ import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.ui.components.EditorialFAB
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
+/**
+ * Remembers the transit viewport and applies destination-driven camera changes.
+ * @param data Visible stops and vehicles used for fitting the camera.
+ * @param routeId Selected route, or null for the San Francisco overview.
+ * @param selectedStopId Stop to focus when arrivals are visible.
+ * @param focusArrivals Whether the camera should include arrivals for the selected stop.
+ * @param cameraKey Full owner identity, including operator, used to detect route changes.
+ */
 @Composable
 internal fun rememberTransitMapViewport(
     data: TransitMapData,
     routeId: String?,
     selectedStopId: String?,
     focusArrivals: Boolean,
+    cameraKey: Any? = routeId,
 ): com.mapbox.maps.extension.compose.animation.viewport.MapViewportState {
     val viewport = rememberMapViewportState {
         setCameraOptions { center(Point.fromLngLat(-122.4194, 37.7749)); zoom(11.0) }
@@ -45,7 +54,7 @@ internal fun rememberTransitMapViewport(
     } else data.stops.map { Point.fromLngLat(it.longitude, it.latitude) }
     // Fit on selection/visibility changes or the first available route snapshot only.
     // Prediction updates and manual gestures retain the current camera, including follow mode.
-    LaunchedEffect(routeId, focusedStop?.id, focusArrivals, bounds.isNotEmpty()) {
+    LaunchedEffect(cameraKey, focusedStop?.id, focusArrivals, bounds.isNotEmpty()) {
         if (routeId == null) {
             viewport.setCameraOptions { center(Point.fromLngLat(-122.4194, 37.7749)); zoom(11.0) }
         } else if (bounds.isNotEmpty()) {

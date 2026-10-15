@@ -9,21 +9,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.nghianguyen.gomuni.tracking.BusTrackingService
-import com.nghianguyen.gomuni.app.navigation.StopArrivalsKey
+import com.nghianguyen.gomuni.app.navigation.StopArrivalsTarget
 import com.nghianguyen.gomuni.app.navigation.TransitNavigationHost
 import com.nghianguyen.gomuni.ui.theme.GoMuniTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private var pendingStopNavigation by mutableStateOf<StopArrivalsKey?>(null)
+    private var pendingStopNavigation by mutableStateOf<StopArrivalsTarget?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Saved navigation history already contains a consumed cold-launch target.
+        // Restored stops state already contains a consumed cold-launch sheet target.
         pendingStopNavigation = savedInstanceState?.getString("pending_stop")?.let { stopId ->
-            savedInstanceState.getString("pending_line")?.let { StopArrivalsKey(it, stopId) }
+            savedInstanceState.getString("pending_line")?.let { StopArrivalsTarget(it, stopId) }
         } ?: if (savedInstanceState == null) trackingTarget(intent) else null
         setContent {
             GoMuniTheme {
@@ -49,9 +49,9 @@ class MainActivity : ComponentActivity() {
         super.onSaveInstanceState(outState)
     }
 
-    private fun trackingTarget(intent: Intent?): StopArrivalsKey? {
+    private fun trackingTarget(intent: Intent?): StopArrivalsTarget? {
         val stopId = intent?.getStringExtra(BusTrackingService.EXTRA_STOP_ID)?.takeIf { it.isNotBlank() } ?: return null
         val lineId = intent.getStringExtra(BusTrackingService.EXTRA_LINE_REF)?.takeIf { it.isNotBlank() } ?: return null
-        return StopArrivalsKey(lineId, stopId)
+        return StopArrivalsTarget(lineId, stopId)
     }
 }

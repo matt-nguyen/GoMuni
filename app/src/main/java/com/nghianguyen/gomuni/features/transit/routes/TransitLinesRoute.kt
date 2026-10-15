@@ -9,24 +9,41 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nghianguyen.gomuni.app.navigation.CollectNavigation
 import com.nghianguyen.gomuni.app.navigation.TransitNavigation
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
-import com.nghianguyen.gomuni.features.transit.map.TransitMapData
-import com.nghianguyen.gomuni.features.transit.map.TransitMapRoute
-import com.nghianguyen.gomuni.features.transit.map.rememberTransitMapViewport
-import com.nghianguyen.gomuni.features.transit.navigation.LocalWideLayout
+import com.nghianguyen.gomuni.app.navigation.TransitLinesKey
+import com.nghianguyen.gomuni.features.transit.navigation.SharedTransitMapState
+import com.nghianguyen.gomuni.features.transit.navigation.TransitMapPresentation
+import com.nghianguyen.gomuni.features.transit.navigation.rememberTransitMapBinding
 
+/**
+ * Connects the lines entry to its list and the host-owned map.
+ * @param sharedMap Transit-scoped map presentation registrations.
+ * @param onNavigate Forwards eligible navigation requests to the host.
+ */
 @Composable
-internal fun TransitLinesRoute(locationGranted: Boolean, onNavigate: (TransitNavigation) -> Unit) {
+internal fun TransitLinesRoute(sharedMap: SharedTransitMapState, onNavigate: (TransitNavigation) -> Unit) {
     val viewModel: TransitLinesViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var menuVisible by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val filterScroll = rememberScrollState()
     CollectNavigation(viewModel.navigationEvents, onNavigate)
-    val mapData = remember { TransitMapData(emptyList(), emptyList()) }
-    val viewport = rememberTransitMapViewport(mapData, null, null, false)
-    TransitLinesScreen(state, viewModel::onAction, LocalWideLayout.current,
-        listState, filterScroll, menuVisible, { menuVisible = it }, map = {
-            TransitMapRoute(mapData, null, false, locationGranted, EditorialTheme.colors.muniRed,
-                viewport, { viewport.transitionToFollowPuckState() }, {}, it)
-        })
+    rememberTransitMapBinding(
+        state = sharedMap,
+        owner = TransitLinesKey,
+        presentation = TransitMapPresentation(routeColor = EditorialTheme.colors.muniRed),
+        topBar = {
+            TransitLinesTopBar(
+                uiState = state,
+                onAction = viewModel::onAction,
+                menuVisible = menuVisible,
+                onMenuVisibilityChanged = { menuVisible = it },
+            )
+        },
+    )
+    TransitLinesPanel(
+        uiState = state,
+        onAction = viewModel::onAction,
+        listState = listState,
+        filterScrollState = filterScroll,
+    )
 }
