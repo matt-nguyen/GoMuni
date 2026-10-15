@@ -8,8 +8,15 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -85,11 +92,12 @@ fun rememberPermissionState(
                     return
                 }
                 inProgress = true
+                var launched = false
                 try {
                     launcher.launch(permission)
-                } catch (error: RuntimeException) {
-                    inProgress = false
-                    throw error
+                    launched = true
+                } finally {
+                    if (!launched) inProgress = false
                 }
             }
         }

@@ -7,6 +7,7 @@ import com.nghianguyen.gomuni.app.navigation.NavigationEvents
 import com.nghianguyen.gomuni.app.navigation.TransitNavigation
 import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
+import com.nghianguyen.gomuni.domain.util.ErrorLogger
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.model.RouteKey
 import com.nghianguyen.gomuni.features.transit.model.transitFailureMessage
@@ -14,9 +15,19 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
+// This UI boundary retains safe error state for unexpected repository/stream failures too.
+@Suppress("TooGenericExceptionCaught")
 @HiltViewModel(assistedFactory = RouteStopsViewModel.Factory::class)
 class RouteStopsViewModel
 @AssistedInject
@@ -24,6 +35,7 @@ constructor(
     private val repository: TransitRepository,
     private val savedStateHandle: SavedStateHandle,
     @Assisted val route: RouteKey,
+    private val errorLogger: ErrorLogger,
 ) : ViewModel() {
     @AssistedFactory
     interface Factory {
@@ -55,16 +67,19 @@ constructor(
                     repository.getTransitLines().collect { lines ->
                         state.update { it.copy(lines = lines) }
                     }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (error: Exception) {
-                    if (error is CancellationException) throw error
                     // Metadata can be unavailable without hiding usable stops.
+                    errorLogger.log("Route metadata unavailable", error)
                 }
             }
             viewModelScope.launch {
                 try {
                     repository.getTransitStops(route.lineId).collect { updateStops(it, false) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (error: Exception) {
-                    if (error is CancellationException) throw error
                     fail(error)
                 }
             }
@@ -120,8 +135,9 @@ constructor(
                 repository.refreshTransitStops(route.operatorId, route.lineId)
                 val stops = repository.getTransitStops(route.lineId).first()
                 if (version == generation) updateStops(stops, true)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
-                if (error is CancellationException) throw error
                 if (version == generation) fail(error)
             }
         }

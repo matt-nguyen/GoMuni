@@ -35,6 +35,9 @@ internal fun vehicleKey(bus: BusArrival): String =
 private fun validLocation(latitude: Double, longitude: Double): Boolean =
     latitude.isFinite() &&
         longitude.isFinite() &&
-        latitude in -90.0..90.0 &&
-        longitude in -180.0..180.0 &&
+        latitude in -MAX_LATITUDE..MAX_LATITUDE &&
+        longitude in -MAX_LONGITUDE..MAX_LONGITUDE &&
         !(latitude == 0.0 && longitude == 0.0)
+
+private const val MAX_LATITUDE = 90.0
+private const val MAX_LONGITUDE = 180.0

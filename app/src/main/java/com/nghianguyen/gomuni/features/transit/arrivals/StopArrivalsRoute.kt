@@ -1,9 +1,21 @@
 package com.nghianguyen.gomuni.features.transit.arrivals
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -66,10 +78,12 @@ internal fun StopArrivalsRoute(
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (isActive && state.fetchedAtMillis != null) {
                 elapsedMinutes =
-                    ((System.currentTimeMillis() - state.fetchedAtMillis!!) / 60000).coerceAtLeast(
-                        0,
-                    )
-                delay(60000)
+                    ((System.currentTimeMillis() - state.fetchedAtMillis!!) /
+                            ARRIVAL_AGE_TICK_MILLIS)
+                        .coerceAtLeast(
+                            0,
+                        )
+                delay(ARRIVAL_AGE_TICK_MILLIS)
             }
         }
     }
@@ -92,7 +106,8 @@ internal fun StopArrivalsRoute(
             listState = listState,
             elapsedMinutes = elapsedMinutes,
             trackingEnabled = trackingEnabled,
-            modifier = Modifier.heightIn(max = androidx.compose.ui.unit.Dp(600f)),
+            modifier =
+                Modifier.heightIn(max = androidx.compose.ui.unit.Dp(ARRIVALS_SHEET_MAX_HEIGHT_DP)),
         )
     }
 }
@@ -120,3 +135,6 @@ internal fun StopArrivalsSheet(
         content()
     }
 }
+
+private const val ARRIVAL_AGE_TICK_MILLIS = 60_000L
+private const val ARRIVALS_SHEET_MAX_HEIGHT_DP = 600f

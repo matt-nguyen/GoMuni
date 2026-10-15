@@ -2,15 +2,24 @@ package com.nghianguyen.gomuni.features.transit.arrivals
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
-import com.nghianguyen.gomuni.domain.model.*
+import com.nghianguyen.gomuni.domain.model.BusArrival
+import com.nghianguyen.gomuni.domain.model.TransitError
+import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.testing.FakeTransitRepository
 import com.nghianguyen.gomuni.testing.MainDispatcherRule
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.test.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 

@@ -1,13 +1,13 @@
 package com.nghianguyen.gomuni.app.navigation
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.test.*
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.navigation3.runtime.*
-import org.junit.Assert.*
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberNavBackStack
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 

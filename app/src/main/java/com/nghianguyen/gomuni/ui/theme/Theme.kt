@@ -1,7 +1,6 @@
 package com.nghianguyen.gomuni.ui.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -106,8 +105,6 @@ object EditorialTheme {
 
 @Composable
 fun GoMuniTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     // Forcing dark theme as per DESIGN.md "uncompromising dark-mode default"

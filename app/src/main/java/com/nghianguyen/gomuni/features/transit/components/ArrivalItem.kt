@@ -1,10 +1,17 @@
 package com.nghianguyen.gomuni.features.transit.components
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -15,6 +22,7 @@ import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.Locale
 import kotlin.math.max
 
@@ -70,21 +78,7 @@ fun ArrivalItem(
                     )
                 }
                 Spacer(modifier = Modifier.width(EditorialTheme.spacing.spaceSm))
-                Column(horizontalAlignment = Alignment.End) {
-                    val timeStr =
-                        formatArrivalTime(arrival.expectedArrival ?: arrival.aimedArrival ?: "")
-                    Text(
-                        text = timeStr,
-                        style = EditorialTheme.typography.titleLarge,
-                        color = editorialColors.signalChartreuse,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        text = if (timeStr.contains(":")) "TIME" else "MIN",
-                        style = EditorialTheme.typography.labelSmall,
-                        color = editorialColors.signalChartreuse,
-                    )
-                }
+                ArrivalEstimate(arrival)
             }
         }
     }
@@ -98,7 +92,7 @@ private fun formatArrivalTime(isoTime: String): String {
         val duration = java.time.Duration.between(now, instant)
         val minutes = max(0, duration.toMinutes())
 
-        if (minutes in 0..60) {
+        if (minutes in 0..MINUTES_PER_HOUR) {
             java.lang.String.format(java.util.Locale.US, "%02d", minutes)
         } else {
             val formatter =
@@ -106,7 +100,29 @@ private fun formatArrivalTime(isoTime: String): String {
                     .withZone(ZoneId.systemDefault())
             formatter.format(instant)
         }
-    } catch (e: Exception) {
-        isoTime.split("T").lastOrNull()?.take(5) ?: isoTime
+    } catch (_: DateTimeParseException) {
+        isoTime.split("T").lastOrNull()?.take(TIME_PREFIX_LENGTH) ?: isoTime
+    }
+}
+
+private const val MINUTES_PER_HOUR = 60
+private const val TIME_PREFIX_LENGTH = 5
+
+@Composable
+private fun ArrivalEstimate(arrival: BusArrival) {
+    val editorialColors = EditorialTheme.colors
+    Column(horizontalAlignment = Alignment.End) {
+        val timeStr = formatArrivalTime(arrival.expectedArrival ?: arrival.aimedArrival ?: "")
+        Text(
+            text = timeStr,
+            style = EditorialTheme.typography.titleLarge,
+            color = editorialColors.signalChartreuse,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = if (timeStr.contains(":")) "TIME" else "MIN",
+            style = EditorialTheme.typography.labelSmall,
+            color = editorialColors.signalChartreuse,
+        )
     }
 }

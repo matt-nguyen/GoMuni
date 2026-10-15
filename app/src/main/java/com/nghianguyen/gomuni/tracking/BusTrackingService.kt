@@ -1,21 +1,29 @@
 package com.nghianguyen.gomuni.tracking
 
-import android.app.*
+import android.app.Notification
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.nghianguyen.gomuni.MainActivity
 import com.nghianguyen.gomuni.R
+import com.nghianguyen.gomuni.domain.model.TransitError
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import dagger.hilt.android.AndroidEntryPoint
-import java.time.Instant
 import javax.inject.Inject
-import kotlin.math.max
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class BusTrackingService : Service() {
@@ -52,10 +60,11 @@ class BusTrackingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
+        createTrackingNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        var restartMode = START_STICKY
         when (intent?.action) {
             ACTION_START -> {
                 stopId = intent.getStringExtra(EXTRA_STOP_ID) ?: ""
@@ -75,7 +84,7 @@ class BusTrackingService : Service() {
                 trackingPreferences.edit().putBoolean(SESSION_ACTIVE, false).commit()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
-                return START_NOT_STICKY
+                restartMode = START_NOT_STICKY
             }
             null -> {
                 if (trackingPreferences.getBoolean(SESSION_ACTIVE, false)) {
@@ -84,11 +93,11 @@ class BusTrackingService : Service() {
                     refreshArrivals()
                 } else {
                     stopSelf()
-                    return START_NOT_STICKY
+                    restartMode = START_NOT_STICKY
                 }
             }
         }
-        return START_STICKY
+        return restartMode
     }
 
     private fun persistSession() {
@@ -137,14 +146,15 @@ class BusTrackingService : Service() {
 
                 if (targetArrival != null) {
                     val timeStr =
-                        formatArrivalTime(
+                        formatTrackingArrivalTime(
                             targetArrival.expectedArrival ?: targetArrival.aimedArrival ?: "",
                         )
                     updateNotification("$timeStr MIN")
                 } else {
                     updateNotification("Arrival data unavailable")
                 }
-            } catch (e: Exception) {
+            } catch (error: TransitError) {
+                Log.e("BusTrackingService", "Unable to refresh tracked arrival", error)
                 updateNotification("Error refreshing data")
             }
         }
@@ -195,35 +205,6 @@ class BusTrackingService : Service() {
             .addAction(R.drawable.refresh_icon, "Refresh", refreshPendingIntent)
             .addAction(0, "Stop Tracking", stopPendingIntent)
             .build()
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
-                NotificationChannel(
-                        CHANNEL_ID,
-                        "Bus Tracking",
-                        NotificationManager.IMPORTANCE_LOW,
-                    )
-                    .apply {
-                        description = "Shows real-time bus arrival information"
-                    }
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun formatArrivalTime(isoTime: String): String {
-        if (isoTime.isEmpty()) return "N/A"
-        return try {
-            val instant = Instant.parse(isoTime)
-            val now = Instant.now()
-            val duration = java.time.Duration.between(now, instant)
-            val minutes = max(0, duration.toMinutes())
-            minutes.toString()
-        } catch (e: Exception) {
-            "?"
-        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

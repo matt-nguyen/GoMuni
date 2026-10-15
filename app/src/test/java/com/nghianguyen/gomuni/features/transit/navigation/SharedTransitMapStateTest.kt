@@ -3,7 +3,9 @@ package com.nghianguyen.gomuni.features.transit.navigation
 import androidx.compose.ui.graphics.Color
 import com.nghianguyen.gomuni.app.navigation.TransitLinesKey
 import com.nghianguyen.gomuni.app.navigation.TransitStopsKey
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Test
 
 class SharedTransitMapStateTest {

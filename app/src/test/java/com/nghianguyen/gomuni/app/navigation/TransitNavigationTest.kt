@@ -1,7 +1,9 @@
 package com.nghianguyen.gomuni.app.navigation
 
 import androidx.navigation3.runtime.NavKey
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TransitNavigationTest {

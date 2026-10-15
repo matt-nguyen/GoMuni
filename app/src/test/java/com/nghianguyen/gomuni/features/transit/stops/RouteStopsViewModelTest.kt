@@ -4,16 +4,25 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import com.nghianguyen.gomuni.app.navigation.TransitNavigation
-import com.nghianguyen.gomuni.domain.model.*
+import com.nghianguyen.gomuni.domain.model.TransitError
+import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.model.RouteKey
 import com.nghianguyen.gomuni.features.transit.testing.FakeTransitRepository
 import com.nghianguyen.gomuni.testing.MainDispatcherRule
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.test.*
+import com.nghianguyen.gomuni.testing.RecordingErrorLogger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -43,7 +52,8 @@ class RouteStopsViewModelTest {
             val refresh = CompletableDeferred<Unit>()
             repository.refreshStops = { refresh.await() }
             val saved = SavedStateHandle(mapOf("selected_stop" to testStop.id))
-            val viewModel = retain(RouteStopsViewModel(repository, saved, route))
+            val viewModel =
+                retain(RouteStopsViewModel(repository, saved, route, RecordingErrorLogger()))
             runCurrent()
             repository.stops.value = emptyList()
             runCurrent()
@@ -62,7 +72,15 @@ class RouteStopsViewModelTest {
         runTest(mainDispatcherRule.dispatcher) {
             repository.stops.value = listOf(testStop)
             repository.refreshStops = { throw TransitError.Network }
-            val viewModel = retain(RouteStopsViewModel(repository, SavedStateHandle(), route))
+            val viewModel =
+                retain(
+                    RouteStopsViewModel(
+                        repository,
+                        SavedStateHandle(),
+                        route,
+                        RecordingErrorLogger(),
+                    ),
+                )
             runCurrent()
             assertEquals(listOf(testStop), viewModel.uiState.value.stops)
             assertEquals(LoadStatus.FAILED, viewModel.uiState.value.status)
@@ -79,7 +97,8 @@ class RouteStopsViewModelTest {
         runTest(mainDispatcherRule.dispatcher) {
             repository.stops.value = listOf(testStop)
             val saved = SavedStateHandle()
-            val viewModel = retain(RouteStopsViewModel(repository, saved, route))
+            val viewModel =
+                retain(RouteStopsViewModel(repository, saved, route, RecordingErrorLogger()))
             runCurrent()
             val events = mutableListOf<TransitNavigation>()
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
@@ -107,12 +126,14 @@ class RouteStopsViewModelTest {
     fun `external sheet selection restores and rejects old dismissals`() =
         runTest(mainDispatcherRule.dispatcher) {
             val saved = SavedStateHandle()
-            val viewModel = retain(RouteStopsViewModel(repository, saved, route))
+            val viewModel =
+                retain(RouteStopsViewModel(repository, saved, route, RecordingErrorLogger()))
             runCurrent()
             viewModel.onAction(RouteStopsAction.OpenArrivals("123"))
             viewModel.onAction(RouteStopsAction.OpenArrivals("456"))
             viewModel.onAction(RouteStopsAction.DismissArrivals("123"))
-            val restored = retain(RouteStopsViewModel(repository, saved, route))
+            val restored =
+                retain(RouteStopsViewModel(repository, saved, route, RecordingErrorLogger()))
             assertEquals("456", restored.uiState.value.arrivalsStopId)
             assertEquals("456", restored.uiState.value.selectedStopId)
             restored.onAction(RouteStopsAction.DismissArrivals("456"))

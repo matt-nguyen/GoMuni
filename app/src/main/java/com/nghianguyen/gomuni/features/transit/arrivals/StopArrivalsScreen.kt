@@ -1,16 +1,19 @@
 package com.nghianguyen.gomuni.features.transit.arrivals
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.nghianguyen.gomuni.R
-import com.nghianguyen.gomuni.features.transit.components.*
+import com.nghianguyen.gomuni.features.transit.components.StopArrivalsContent
 import com.nghianguyen.gomuni.features.transit.components.isLoading
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
-import com.nghianguyen.gomuni.ui.components.*
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 @Composable
