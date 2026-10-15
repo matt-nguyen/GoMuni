@@ -1,15 +1,22 @@
 # GoMuni
 
-GoMuni is an Android app for browsing San Francisco Muni bus routes and getting real-time arrival estimates at bus stops.
+GoMuni helps San Francisco riders find a Muni bus route, choose a stop, and see when the next bus is coming. Explore stops on an interactive map, check live arrival estimates, and follow an incoming bus with a tracking notification.
 
+## Screenshots
+
+| Explore routes | Find your stop | Check live arrivals |
+| --- | --- | --- |
+| <img src="screenshots/readme/routes.png" alt="Muni route list with service filters and a map of San Francisco" width="260"> | <img src="screenshots/readme/stops.png" alt="Route 1 California with stop markers and a list of stop names and IDs" width="260"> | <img src="screenshots/readme/arrivals.png" alt="Live arrivals for 32nd Avenue and California Street with minute estimates and bus tracking buttons" width="260"> |
+| Browse routes and narrow the list by service type. | Select a route to explore its stops on the map and in a list. | Open a stop for arrival estimates; tap a bell to start tracking. |
+
+Captured from the current debug build on a Pixel 6 running Android 16. Arrival times and vehicle availability reflect live data at capture time.
 
 ## Features
-- Browse San Francisco Muni bus routes
-- View the stops for a selected bus route on a map
-- View real-time bus stop ETAs
-- See incoming buses on the map when available
-- Track a bus stop and receive push notifications with updated ETA information
-- Manually refresh a tracked stop's ETA
+
+- **Route discovery:** browse Muni bus routes, filter by Local, Rapid, Express, or Owl service, and sort by route ID or name.
+- **Map and stop browsing:** view a route's stops on a Mapbox map and in a list with stop names and IDs; see incoming vehicles when data is available.
+- **Live arrivals:** check upcoming buses, minute estimates, vehicle IDs when provided, and the last update time. Refresh arrivals on demand.
+- **Bus tracking:** tap an arrival's bell to follow it through an ongoing Android notification, with actions to refresh its ETA or stop tracking. Tap the notification to return to the stop. Notification permission is required.
 
 ## Tech Stack
 - **Kotlin** — Application language
