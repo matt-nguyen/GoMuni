@@ -6,7 +6,8 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TransitMapDataTest {
-    @Test fun mapFiltersInvalidCoordinatesOtherRoutesAndDuplicateVehicles() {
+    @Test
+    fun `map filters invalid coordinates other routes and duplicate vehicles`() {
         val stop = TransitStop("123", "Market", 37.78, -122.41, null, "38")
         val bus = BusArrival("38", "Geary", null, null, "bus1", 37.78, -122.41)
         val data = TransitMapData.from(listOf(stop, stop.copy(id = "invalid", latitude = 91.0)),
@@ -16,7 +17,8 @@ class TransitMapDataTest {
         assertEquals(listOf(bus), data.vehicles)
     }
 
-    @Test fun predictionsFromAnotherStopDoNotAppearOnCurrentMap() {
+    @Test
+    fun `predictions from another stop do not appear on current map`() {
         val bus = BusArrival("38", "Geary", null, null, "bus1", 37.78, -122.41)
         val data = TransitMapData.from(emptyList(), "456", "38", ArrivalMapProjection("123", listOf(bus)))
         assertTrue(data.vehicles.isEmpty())

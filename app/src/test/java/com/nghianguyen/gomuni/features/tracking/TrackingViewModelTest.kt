@@ -1,90 +1,132 @@
 package com.nghianguyen.gomuni.features.tracking
 
+import androidx.lifecycle.ViewModelStore
+import com.nghianguyen.gomuni.testing.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
+import org.junit.After
+import org.junit.Rule
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TrackingViewModelTest {
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
+    private val viewModelStore = ViewModelStore()
     private val request = TrackingRequest("123", "Market", "38", "Geary", "bus1")
 
-    @Test fun startupEmitsPermissionAndLaunchOnceAndAllowsSameTargetAgain() = runTest {
-        val vm = TrackingViewModel()
-        val effects = mutableListOf<TrackingEffect>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect { effects.add(it) } }
-        vm.onAction(TrackingAction.Start(request))
-        vm.onAction(TrackingAction.Start(request.copy(stopId = "other")))
-        assertEquals(listOf(TrackingEffect.RequestNotificationPermission(request)), effects)
-        assertTrue(vm.uiState.value.isStarting)
-        vm.onAction(TrackingAction.PermissionResolved(true))
-        assertEquals(TrackingEffect.LaunchTrackingService(request), effects.last())
-        vm.onAction(TrackingAction.LaunchResolved(true))
-        assertEquals(TrackingUiState(), vm.uiState.value)
-        vm.onAction(TrackingAction.Start(request))
-        assertEquals(3, effects.size)
+    @After
+    fun clearViewModels() {
+        viewModelStore.clear()
     }
 
-    @Test fun noCollectorDoesNotLeaveStartupBusyOrReplayEffect() = runTest {
-        val vm = TrackingViewModel()
-        vm.onAction(TrackingAction.Start(request))
-        assertFalse(vm.uiState.value.isStarting)
-        assertEquals(TrackingFailure.STARTUP_FAILED, vm.uiState.value.error?.reason)
+    private fun createTrackingViewModel(): TrackingViewModel = TrackingViewModel().also {
+        viewModelStore.put("tracking:${System.identityHashCode(it)}", it)
+    }
+
+    @Test
+    fun `startup emits permission and launch once and allows same target again`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createTrackingViewModel()
         val effects = mutableListOf<TrackingEffect>()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect { effects.add(it) } }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect { effects.add(it) } }
+        viewModel.onAction(TrackingAction.Start(request))
+        viewModel.onAction(TrackingAction.Start(request.copy(stopId = "other")))
+        assertEquals(listOf(TrackingEffect.RequestNotificationPermission(request)), effects)
+        assertTrue(viewModel.uiState.value.isStarting)
+        viewModel.onAction(TrackingAction.PermissionResolved(true))
+        assertEquals(TrackingEffect.LaunchTrackingService(request), effects.last())
+        viewModel.onAction(TrackingAction.LaunchResolved(true))
+        assertEquals(TrackingUiState(), viewModel.uiState.value)
+        viewModel.onAction(TrackingAction.Start(request))
+        assertEquals(
+            listOf(
+                TrackingEffect.RequestNotificationPermission(request),
+                TrackingEffect.LaunchTrackingService(request),
+                TrackingEffect.RequestNotificationPermission(request),
+            ),
+            effects,
+        )
+    }
+
+    @Test
+    fun `no collector does not leave startup busy or replay effect`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createTrackingViewModel()
+        viewModel.onAction(TrackingAction.Start(request))
+        assertFalse(viewModel.uiState.value.isStarting)
+        assertEquals(TrackingFailure.STARTUP_FAILED, viewModel.uiState.value.error?.reason)
+        val effects = mutableListOf<TrackingEffect>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect { effects.add(it) } }
         assertTrue(effects.isEmpty())
     }
 
-    @Test fun deniedPermissionRetainsRationaleAndCanBeDismissed() = runTest {
-        val vm = TrackingViewModel()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect {} }
-        vm.onAction(TrackingAction.Start(request))
-        vm.onAction(TrackingAction.PermissionResolved(false, true))
-        assertEquals(TrackingUiState(error = TrackingErrorUiState(TrackingFailure.PERMISSION_DENIED, true)), vm.uiState.value)
-        vm.onAction(TrackingAction.DismissFailure)
-        assertEquals(TrackingUiState(), vm.uiState.value)
+    @Test
+    fun `denied permission retains rationale and can be dismissed`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createTrackingViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect {} }
+        viewModel.onAction(TrackingAction.Start(request))
+        viewModel.onAction(TrackingAction.PermissionResolved(false, true))
+        assertEquals(TrackingUiState(error = TrackingErrorUiState(TrackingFailure.PERMISSION_DENIED, true)), viewModel.uiState.value)
+        viewModel.onAction(TrackingAction.DismissFailure)
+        assertEquals(TrackingUiState(), viewModel.uiState.value)
     }
 
-    @Test fun collectorRestartDoesNotReplayAndInterruptedStartupCanRetry() = runTest {
-        val vm = TrackingViewModel()
+    @Test
+    fun `collector restart does not replay and interrupted startup can retry`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createTrackingViewModel()
         val effects = mutableListOf<TrackingEffect>()
-        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect { effects.add(it) } }
-        vm.onAction(TrackingAction.Start(request))
-        collector.cancel()
-        vm.onAction(TrackingAction.StartupInterrupted)
-        assertFalse(vm.uiState.value.isStarting)
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect { effects.add(it) } }
-        assertEquals(1, effects.size)
-        vm.onAction(TrackingAction.Start(request))
-        assertEquals(2, effects.size)
-        assertEquals(TrackingUiState(), TrackingViewModel().uiState.value)
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect { effects.add(it) } }
+        viewModel.onAction(TrackingAction.Start(request))
+        collector.cancelAndJoin()
+        viewModel.onAction(TrackingAction.StartupInterrupted)
+        assertFalse(viewModel.uiState.value.isStarting)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect { effects.add(it) } }
+        assertEquals(listOf(TrackingEffect.RequestNotificationPermission(request)), effects)
+        viewModel.onAction(TrackingAction.Start(request))
+        assertEquals(List(2) { TrackingEffect.RequestNotificationPermission(request) }, effects)
     }
 
-    @Test fun permissionCompletionWithoutCollectorFailsInsteadOfLeavingBusy() = runTest {
-        val vm = TrackingViewModel()
-        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect {} }
-        vm.onAction(TrackingAction.Start(request))
-        collector.cancel()
-        vm.onAction(TrackingAction.PermissionResolved(true))
-        assertFalse(vm.uiState.value.isStarting)
-        assertEquals(TrackingFailure.STARTUP_FAILED, vm.uiState.value.error?.reason)
+    @Test
+    fun `new view model does not restore an unfinished startup`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createTrackingViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect {} }
+        viewModel.onAction(TrackingAction.Start(request))
+        assertTrue(viewModel.uiState.value.isStarting)
+
+        val recreatedViewModel = createTrackingViewModel()
+
+        assertEquals(TrackingUiState(), recreatedViewModel.uiState.value)
     }
 
-    @Test fun launchFailureAllowsRetryAndInactivePhaseResultsAreIgnored() = runTest {
-        val vm = TrackingViewModel()
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.effects.collect {} }
-        vm.onAction(TrackingAction.Start(request))
-        vm.onAction(TrackingAction.LaunchResolved(true))
-        assertTrue(vm.uiState.value.isStarting)
-        vm.onAction(TrackingAction.StartupFailed)
-        assertEquals(TrackingFailure.STARTUP_FAILED, vm.uiState.value.error?.reason)
-        vm.onAction(TrackingAction.Start(request))
-        vm.onAction(TrackingAction.PermissionResolved(true))
-        vm.onAction(TrackingAction.LaunchResolved(false))
-        assertEquals(TrackingFailure.STARTUP_FAILED, vm.uiState.value.error?.reason)
-        assertFalse(vm.uiState.value.isStarting)
+    @Test
+    fun `permission completion without collector fails instead of leaving busy`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createTrackingViewModel()
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect {} }
+        viewModel.onAction(TrackingAction.Start(request))
+        collector.cancelAndJoin()
+        viewModel.onAction(TrackingAction.PermissionResolved(true))
+        assertFalse(viewModel.uiState.value.isStarting)
+        assertEquals(TrackingFailure.STARTUP_FAILED, viewModel.uiState.value.error?.reason)
+    }
+
+    @Test
+    fun `launch failure allows retry and inactive phase results are ignored`() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createTrackingViewModel()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.effects.collect {} }
+        viewModel.onAction(TrackingAction.Start(request))
+        viewModel.onAction(TrackingAction.LaunchResolved(true))
+        assertTrue(viewModel.uiState.value.isStarting)
+        viewModel.onAction(TrackingAction.StartupFailed)
+        assertEquals(TrackingFailure.STARTUP_FAILED, viewModel.uiState.value.error?.reason)
+        viewModel.onAction(TrackingAction.Start(request))
+        viewModel.onAction(TrackingAction.PermissionResolved(true))
+        viewModel.onAction(TrackingAction.LaunchResolved(false))
+        assertEquals(TrackingFailure.STARTUP_FAILED, viewModel.uiState.value.error?.reason)
+        assertFalse(viewModel.uiState.value.isStarting)
     }
 }

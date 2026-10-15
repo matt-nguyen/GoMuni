@@ -1,14 +1,12 @@
-package com.nghianguyen.gomuni.features.transit
+package com.nghianguyen.gomuni.features.transit.arrivals
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
-import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -19,49 +17,27 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation3.runtime.*
 import androidx.navigation3.ui.NavDisplay
 import androidx.test.espresso.Espresso
-import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.app.navigation.*
 import com.nghianguyen.gomuni.ui.theme.GoMuniTheme
-import com.nghianguyen.gomuni.features.transit.arrivals.ArrivalsSheetScope
-import com.nghianguyen.gomuni.features.transit.arrivals.StopArrivalsSheet
-import com.nghianguyen.gomuni.features.transit.model.LoadStatus
-import com.nghianguyen.gomuni.features.transit.model.RouteKey
-import com.nghianguyen.gomuni.features.transit.stops.RouteStopsAction
-import com.nghianguyen.gomuni.features.transit.stops.RouteStopsScreen
-import com.nghianguyen.gomuni.features.transit.stops.RouteStopsUiState
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 
-class PresentationNavigationTest {
-    @get:Rule val compose = createComposeRule()
-
-    @Test fun stopsScreenReportsTypedSelectionAndBackActions() {
-        val actions = mutableListOf<RouteStopsAction>()
-        val stop = TransitStop("123", "Market", 37.78, -122.41, null, "38")
-        compose.setContent {
-            GoMuniTheme {
-                RouteStopsScreen(RouteStopsUiState(RouteKey("SF", "38"), stops = listOf(stop),
-                    status = LoadStatus.LOADED), actions::add, false, rememberLazyListState(), null,
-                    map = { Box(it) { Text("Map placeholder") } })
-            }
-        }
-        compose.onNodeWithText("Market").performClick()
-        compose.onNodeWithContentDescription("Back").performClick()
-        compose.runOnIdle {
-            assertEquals(listOf(RouteStopsAction.SelectStop("123"), RouteStopsAction.Back), actions)
-        }
-    }
+/** Verifies sheet scope and dismissal with Navigation 3 and the arrivals sheet. */
+class ArrivalsSheetIntegrationTest {
+    @get:Rule
+    val composeRule = createComposeRule()
 
     @OptIn(ExperimentalMaterial3Api::class)
-    @Test fun sheetsHaveIndependentScopesAndDismissWithoutPoppingTheStopsRoute() {
+    @Test
+    fun arrivalsSheet_whenDismissed_clearsIndependentScopeAndRetainsStopsRoute() {
         lateinit var stack: NavBackStack<NavKey>
         val models = mutableMapOf<NavKey, EntryModel>()
         val opened = mutableStateOf<String?>(null)
         lateinit var sheetModel: EntryModel
         lateinit var sheetLifecycle: Lifecycle
         val stops = TransitStopsKey("38")
-        compose.setContent {
+        composeRule.setContent {
             GoMuniTheme {
                 stack = rememberNavBackStack(TransitLinesKey)
                 NavDisplay(
@@ -93,66 +69,50 @@ class PresentationNavigationTest {
                 )
             }
         }
-        compose.runOnIdle { navigate(stack, TransitNavigation.OpenRoute("SF", "38")) }
-        compose.onNodeWithText("Stops").assertExists()
+        composeRule.runOnIdle { navigate(stack, TransitNavigation.OpenRoute("SF", "38")) }
+        composeRule.onNodeWithText("Stops").assertExists()
         lateinit var parentModel: EntryModel
-        compose.runOnIdle {
+        composeRule.runOnIdle {
             parentModel = models.getValue(stops)
             opened.value = "123"
         }
-        compose.onNodeWithText("Arrivals 123").assertExists()
+        composeRule.onNodeWithText("Arrivals 123").assertExists()
         lateinit var first: EntryModel
         lateinit var firstLifecycle: Lifecycle
-        compose.runOnIdle {
+        composeRule.runOnIdle {
             first = sheetModel
             firstLifecycle = sheetLifecycle
             assertNotSame(parentModel, first)
         }
         Espresso.pressBack()
-        compose.waitUntil { first.cleared }
-        compose.runOnIdle {
+        composeRule.waitUntil { first.cleared }
+        composeRule.runOnIdle {
             assertEquals(Lifecycle.State.DESTROYED, firstLifecycle.currentState)
             assertEquals(stops, stack.last())
             assertEquals(2, stack.size)
             assertFalse(parentModel.cleared)
             opened.value = "123"
         }
-        compose.onNodeWithText("Arrivals 123").assertExists()
+        composeRule.onNodeWithText("Arrivals 123").assertExists()
         lateinit var reopened: EntryModel
-        compose.runOnIdle {
+        composeRule.runOnIdle {
             reopened = sheetModel
             assertNotSame(first, reopened)
             opened.value = "456"
         }
-        compose.onNodeWithText("Arrivals 456").assertExists()
-        compose.runOnIdle {
+        composeRule.onNodeWithText("Arrivals 456").assertExists()
+        composeRule.runOnIdle {
             assertTrue(reopened.cleared)
             assertNotSame(reopened, sheetModel)
             assertFalse(parentModel.cleared)
         }
-        compose.onNodeWithText("Close test sheet").performClick()
-        compose.waitUntil { sheetModel.cleared }
-        compose.runOnIdle {
+        composeRule.onNodeWithText("Close test sheet").performClick()
+        composeRule.waitUntil { sheetModel.cleared }
+        composeRule.runOnIdle {
             assertEquals(stops, stack.last())
             navigate(stack, TransitNavigation.Back)
         }
-        compose.waitUntil { parentModel.cleared }
-    }
-
-    @Test fun externalRouteHistoryRestoresWithoutAddingSheetEntries() {
-        val restoration = StateRestorationTester(compose)
-        lateinit var stack: NavBackStack<NavKey>
-        restoration.setContent {
-            stack = rememberNavBackStack(TransitLinesKey)
-            Text(stack.last().toString())
-        }
-        compose.runOnIdle { navigateToStopRoute(stack, StopArrivalsTarget("38", "123")) }
-        restoration.emulateSavedInstanceStateRestore()
-        compose.runOnIdle {
-            assertEquals(listOf(TransitLinesKey, TransitStopsKey("38")), stack)
-            navigateToStopRoute(stack, StopArrivalsTarget("38", "123"))
-            assertEquals(2, stack.size)
-        }
+        composeRule.waitUntil { parentModel.cleared }
     }
 
     private class EntryModel : ViewModel() {
