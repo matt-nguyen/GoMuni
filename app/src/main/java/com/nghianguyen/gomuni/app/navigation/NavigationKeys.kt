@@ -10,4 +10,4 @@ data object TransitLinesKey : NavKey
 data class TransitStopsKey(val lineId: String, val operatorId: String = "SF") : NavKey
 
 @Serializable
-data class StopArrivalsKey(val lineId: String, val stopId: String, val operatorId: String = "SF") : NavKey
+data class StopArrivalsTarget(val lineId: String, val stopId: String, val operatorId: String = "SF")

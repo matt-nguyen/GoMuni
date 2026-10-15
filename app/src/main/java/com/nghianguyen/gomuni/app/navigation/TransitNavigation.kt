@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 
 sealed interface TransitNavigation {
     data class OpenRoute(val operatorId: String, val lineId: String) : TransitNavigation
-    data class OpenStop(val operatorId: String, val lineId: String, val stopId: String) : TransitNavigation
     data object Back : TransitNavigation
 }
 
@@ -20,14 +19,23 @@ class NavigationEvents {
     fun emit(event: TransitNavigation) { events.tryEmit(event) }
 }
 
-/** Whether stops and arrivals can participate in the same interactive scene. */
-internal fun isStopsParentOf(parent: NavKey?, child: NavKey?): Boolean =
-    parent is TransitStopsKey && child is StopArrivalsKey &&
-        parent.lineId == child.lineId && parent.operatorId == child.operatorId
+/** Only the current destination can originate navigation. Sheets do not change eligibility. */
+internal fun canNavigate(origin: NavKey, current: NavKey?): Boolean = origin == current
 
-/** Accepts the current destination or the matching interactive stops parent. */
-internal fun canNavigate(origin: NavKey, current: NavKey?): Boolean =
-    origin == current || isStopsParentOf(origin, current)
+/** Reconciles external stop entry to its stops route; the route opens the sheet separately. */
+internal fun navigateToStopRoute(stack: MutableList<NavKey>, target: StopArrivalsTarget): Boolean {
+    if (target.operatorId.isBlank() || target.lineId.isBlank() || target.stopId.isBlank()) return false
+    val parent = TransitStopsKey(target.lineId, target.operatorId)
+    val parentIndex = stack.indexOf(parent)
+    if (parentIndex >= 0) {
+        while (stack.lastIndex > parentIndex) stack.removeAt(stack.lastIndex)
+    } else {
+        while (stack.size > 1) stack.removeAt(stack.lastIndex)
+        if (stack.isEmpty()) stack.add(TransitLinesKey)
+        stack.add(parent)
+    }
+    return true
+}
 
 /** Pure stack policy shared by in-app navigation and external entry. */
 fun navigate(stack: MutableList<NavKey>, event: TransitNavigation) {
@@ -39,21 +47,6 @@ fun navigate(stack: MutableList<NavKey>, event: TransitNavigation) {
             val existing = stack.indexOf(target)
             if (existing >= 0) while (stack.lastIndex > existing) stack.removeAt(stack.lastIndex)
             else stack.add(target)
-        }
-        is TransitNavigation.OpenStop -> {
-            if (event.operatorId.isBlank() || event.lineId.isBlank() || event.stopId.isBlank()) return
-            val parent = TransitStopsKey(event.lineId, event.operatorId)
-            val target = StopArrivalsKey(event.lineId, event.stopId, event.operatorId)
-            if (stack.lastOrNull() == target) return
-            val parentIndex = stack.indexOf(parent)
-            if (parentIndex >= 0) {
-                while (stack.lastIndex > parentIndex) stack.removeAt(stack.lastIndex)
-            } else {
-                while (stack.size > 1) stack.removeAt(stack.lastIndex)
-                if (stack.isEmpty()) stack.add(TransitLinesKey)
-                stack.add(parent)
-            }
-            stack.add(target)
         }
     }
 }

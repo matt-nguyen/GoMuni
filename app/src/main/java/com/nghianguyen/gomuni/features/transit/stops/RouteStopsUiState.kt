@@ -9,6 +9,7 @@ data class RouteStopsUiState(
     val route: RouteKey,
     val stops: List<TransitStop> = emptyList(),
     val selectedStopId: String? = null,
+    val arrivalsStopId: String? = null,
     val status: LoadStatus = LoadStatus.NOT_LOADED,
     val isRefreshing: Boolean = false,
     val error: String? = null,

@@ -25,7 +25,8 @@ class RouteStopsViewModel @AssistedInject constructor(
 ) : ViewModel() {
     @AssistedFactory interface Factory { fun create(route: RouteKey): RouteStopsViewModel }
     private val state = MutableStateFlow(RouteStopsUiState(route,
-        selectedStopId = savedStateHandle["selected_stop"]))
+        selectedStopId = savedStateHandle["selected_stop"],
+        arrivalsStopId = savedStateHandle["arrivals_stop"]))
     val uiState = state.asStateFlow()
     private val navigation = NavigationEvents()
     val navigationEvents = navigation.flow
@@ -58,19 +59,35 @@ class RouteStopsViewModel @AssistedInject constructor(
 
     fun onAction(action: RouteStopsAction) {
         when (action) {
-            RouteStopsAction.Back -> navigation.emit(TransitNavigation.Back)
+            RouteStopsAction.Back -> goBack()
             RouteStopsAction.Refresh -> refresh()
-            is RouteStopsAction.SelectStop -> if (state.value.stops.any { it.id == action.stopId }) {
-                rememberSelection(action.stopId)
-                navigation.emit(TransitNavigation.OpenStop(route.operatorId, route.lineId, action.stopId))
-            }
+            is RouteStopsAction.SelectStop -> selectStop(action.stopId)
+            is RouteStopsAction.OpenArrivals -> openArrivals(action.stopId)
+            is RouteStopsAction.DismissArrivals -> dismissArrivals(action.stopId)
         }
     }
 
-    /** Navigation identity may arrive from an external request rather than a list click. */
-    fun rememberSelection(stopId: String) {
+    private fun goBack() {
+        val openStop = state.value.arrivalsStopId
+        if (openStop != null) dismissArrivals(openStop)
+        else navigation.emit(TransitNavigation.Back)
+    }
+
+    private fun selectStop(stopId: String) {
+        if (state.value.stops.any { it.id == stopId }) openArrivals(stopId)
+    }
+
+    private fun openArrivals(stopId: String) {
+        if (stopId.isBlank()) return
         savedStateHandle["selected_stop"] = stopId
-        state.update { it.copy(selectedStopId = stopId) }
+        savedStateHandle["arrivals_stop"] = stopId
+        state.update { it.copy(selectedStopId = stopId, arrivalsStopId = stopId) }
+    }
+
+    private fun dismissArrivals(stopId: String) {
+        if (state.value.arrivalsStopId != stopId) return
+        savedStateHandle.remove<String>("arrivals_stop")
+        state.update { it.copy(arrivalsStopId = null) }
     }
 
     private fun refresh() {
