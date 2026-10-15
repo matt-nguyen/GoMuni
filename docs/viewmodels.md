@@ -1,209 +1,263 @@
 # ViewModel conventions
 
-## Scope
+Apply these rules to new ViewModels and authorized refactors. Preserve intended
+behavior during fixes; do not expand unrelated changes into architectural migrations.
 
-These reusable conventions prescribe ViewModel implementation and lifecycle
-contracts for Android applications using Compose and MVVM. They do not inventory
-a particular application's ViewModels. Apply them to new work and authorized
-refactors; preserve intended behavior and avoid unrelated migrations during fixes.
+This document owns ViewModel structure, initialization, coroutine execution, and
+ViewModel test patterns. [UI state](ui-state.md) owns state shape, naming, presentation
+policies, effect delivery, and restoration contracts. Examples here illustrate those
+contracts; do not redefine them here.
 
-Use these companion documents for detailed rules:
+## Implementation checklist
 
-- [Architecture](architecture.md): layer dependencies, repository/use-case contracts,
-  failures, dispatcher ownership, and background work.
-- [UI state](ui-state.md): state models, loading/error policies, effect delivery,
-  asynchronous results, and restoration.
-- [Navigation](navigation.md): destination scope and navigation event handling.
-- [UI architecture](ui-architecture.md): route integration, typed screen actions,
-  presentation state, and effect execution.
+- Expose one typed `onAction` entry point.
+  `onAction` only dispatches to named private handlers, including for simple actions.
+  Handlers validate prerequisites and own their operations and state updates.
+- Expose state and outputs according to [state contracts](ui-state.md#state-contracts)
+  and [effect delivery](ui-state.md#state-and-one-time-effects). Keep mutable backing
+  flows private. Follow the shared [naming conventions](ui-state.md#naming).
+- Use private handlers rather than a central reducer-style `current -> next -> commit`
+  implementation. Derived repository flows are allowed; configure their sharing and
+  restart behavior deliberately so collection does not repeat commands.
+- Inject domain contracts. Keep authoritative data in repositories and meaningful
+  business orchestration in use cases. Simple operations may call repositories
+  directly. Do not retain Activities, launchers, navigation stacks, or UI controllers.
+- Default to one ViewModel per destination entry, acquired by its route. Document
+  shared scope owners, participants, and lifetimes. Creation does not imply visibility;
+  define when polling and other visibility-dependent work starts and stops.
+- Validate supplied arguments and restore essential inputs before starting work.
+  Do not depend on recomposition to trigger initialization or assume navigation keys
+  automatically populate `SavedStateHandle`. Choose initial loading or subscription-driven
+  observation explicitly; collector restarts must not repeat initialization.
 
-## Responsibility and scope
+## Coroutines and concurrency
 
-A ViewModel owns a destination's screen state and coordinates its actions with
-domain operations. It is not an application-wide state container, a navigation
-host, or a platform controller.
+- Launch ViewModel-owned asynchronous work in `viewModelScope`; do not use
+  `GlobalScope` or unmanaged scopes. Clearing the ViewModel cancels this work;
+  hiding a retained destination does not. Define visibility-dependent work separately.
+- Use atomic updates or explicit serialization where needed.
+- Suspend functions do not automatically run in the background. Data/domain APIs
+  must be main-safe; the class doing blocking I/O or expensive computation owns the
+  dispatcher switch. Inject dispatchers where needed for testing; see
+  [Architecture](architecture.md#coroutines-dispatchers-and-work-lifetimes).
+- Choose concurrency per operation: replace, ignore duplicates, queue, or independent.
+  For replaceable one-shot work, cancel the private Job and launch the new request;
+  do not add request IDs or generation counters by default. For UI-state-driven work,
+  select the relevant input, apply `distinctUntilChanged`, and use `flatMapLatest`.
+  Both patterns require cancellation-cooperative APIs and no detached callbacks.
+  Correlate external callbacks or recoverable requests when cancellation cannot
+  control their delivery. State-update lambdas must be effect-free.
+- Preserve `CancellationException`, including in broad catches and `runCatching`.
+  Cancellation must not become an error or overwrite newer operation state. Only the
+  current operation may clear its loading state during cleanup.
+- Map expected domain failures to meaningful UI errors. Define where unexpected
+  exceptions are reported and safely handled; never silently convert every exception
+  into an ordinary failure. Follow [failure boundaries](architecture.md#failures-across-boundaries).
+- Choose `stateIn` initial values and sharing/restart policy deliberately, using
+  `SharingStarted.WhileSubscribed` when appropriate. Stopping UI collection does not
+  automatically stop independently launched jobs. See [state production](ui-state.md#state-production-and-collection).
 
-Default to a ViewModel per destination entry. Acquire it at the route boundary
-under the configured entry-owned store. Shared scopes require a documented owner,
-participants, lifetime, and reason. Do not scope by destination type alone when
-multiple entries must retain independent state.
+## Platform integration
 
-Keep authoritative shared data in repositories. Keep business rules and meaningful
-business orchestration in domain use cases. Direct calls to domain repository
-interfaces are allowed for simple operations. Route wrappers own presentation
-controllers and execute UI/platform effects.
+Publish requests using the [delivery contract](ui-state.md#state-and-one-time-effects)
+and [restoration rules](ui-state.md#restoration). Routes execute platform/UI work and
+return results through `onAction`; private handlers validate them before updating
+operations. The navigation owner applies navigation requests; see
+[Navigation](navigation.md#viewmodel-navigation-events).
 
-ViewModels must not retain Activities, composables, launchers, navigation stacks,
-scaffold controllers, or other UI objects. Inject narrow domain contracts and
-testable dependencies rather than locating them through global access.
+Keep saved-state keys and serialization in focused private helpers. Restore inputs
+before launching work. Work that must outlive destination removal belongs to a
+background owner; do not rely on `onCleared` to finish or persist critical work.
 
-## Public contract
+## Main ViewModel example
 
-Expose a read-only `StateFlow<FeatureUiState>` and one typed
-`onAction(action: FeatureAction)` entry point. Keep mutable state and operation
-helpers private. Screen callbacks use the feature action contract; route wrappers
-handle presentation-only actions locally and forward ViewModel-owned actions.
+Keep the main structure small: rendering state, one effects flow, and private action
+handlers. Imports, DI, and screen rendering are omitted. Request patterns below are
+separate extensions to this example, not steps to combine into one implementation.
 
-Actions express intent and carry minimal values or identities. ViewModel-originated
-navigation and effect requests use separate typed outputs with the delivery
-contracts defined in the companion documents. Do not encode UI objects or callbacks
-inside requests.
+```kotlin
+data class StopsUiState(
+    val searchQuery: String = "",
+    val stopIds: List<String> = emptyList(),
+    val searchUnavailable: Boolean = false,
+)
 
-Document supported actions, initial state, essential invariants, and output delivery
-semantics. Validate actions against current state even when UI controls are disabled.
-Avoid exposing mutable collections, job handles, or internal reducers to callers.
+sealed interface StopsAction {
+    data class SearchQueryChanged(val query: String) : StopsAction
+    data class StopSelected(val stopId: String) : StopsAction
+}
 
-## Initialization and inputs
+sealed interface StopsEffect {
+    data class NavigateToArrivals(val stopId: String) : StopsEffect
+    data object ShowStopSelectionHint : StopsEffect
+}
 
-Initialize argument-driven work in the ViewModel, using validated inputs supplied
-by its factory or saved-state setup. Restore essential inputs before starting work.
-Do not require a route to repeatedly invoke a load command merely because it recomposes.
+class StopsViewModel : ViewModel() {
+    private val _uiState = MutableStateFlow(StopsUiState())
+    val uiState = _uiState.asStateFlow()
 
-Specify whether initialization performs a one-shot load, starts observation, or
-builds a subscription-driven state pipeline. ViewModel creation is not equivalent
-to visibility; expensive work may need to wait for an explicit visibility signal.
+    private val _effects = MutableSharedFlow<StopsEffect>(
+        replay = 0, extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val effects = _effects.asSharedFlow()
 
-When work depends on active UI participation, the route sends explicit lifecycle
-or visibility actions. Define repeated-signal behavior, start/stop ownership, and
-resume policy. Avoid duplicate observers and repeated commands when collection
-restarts. Do not pass a `LifecycleOwner` into the ViewModel or make it infer activity
-from the presence of a subscriber alone.
+    fun onAction(action: StopsAction) {
+        when (action) {
+            is StopsAction.SearchQueryChanged -> updateSearchQuery(action.query)
+            is StopsAction.StopSelected -> selectStop(action.stopId)
+        }
+    }
 
-Destination identity normally remains fixed for an entry. Treat changes to query,
-filter, or selection as explicit input transitions, with documented cancellation
-and content-retention policies. If arguments can change for a retained instance,
-define how every dependent operation and saved input is reconciled.
+    private fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
 
-## Internal implementation choices
+    private fun selectStop(stopId: String) {
+        if (stopId.isBlank()) {
+            _effects.tryEmit(StopsEffect.ShowStopSelectionHint)
+            return
+        }
+        _effects.tryEmit(StopsEffect.NavigateToArrivals(stopId))
+    }
+}
+```
 
-There is no required reducer, actor, or state-machine framework. Choose a structure
-that makes the feature's transitions and concurrency understandable:
+## One-shot requests: cancel and replace
 
-| Approach | Useful when | Responsibility to preserve |
-| --- | --- | --- |
-| Private handlers and controlled state updates | Operations are few and their interactions are straightforward | Atomic updates and explicit operation ownership |
-| Derived flows combining inputs and repositories | State is primarily a projection of observable sources | Deliberate sharing, initial values, and restart behavior |
-| Pure reducer with separate work execution | Many transitions need consistent rules | Reducers stay side-effect-free; results remain correlated with requests |
-| Explicit workflow/state machine | Phases and legal transitions matter | Valid transitions, phase payloads, and recovery rules |
+For an explicit request action, keep one private Job per replaceable operation.
+The handler cancels the previous job and launches the new request in `viewModelScope`.
+No request identity or generation counter is needed. This snippet assumes an injected,
+main-safe repository returning typed `StopSearchResult.Success` or `Unavailable`.
+The action dispatches to `searchStops`; do not also install the observer below.
 
-These approaches may coexist for different concerns. Extract focused helpers when
-they clarify a responsibility; do not move unrelated operations into a generic
-manager just to shorten the ViewModel. Pure helpers must not acquire hidden scopes
-or perform platform effects.
+```kotlin
+private var searchJob: Job? = null
 
-Follow ui-state.md for immutable snapshots and derived values. Keep one authoritative
-owner per input, and avoid copying repository data into independently mutable state.
+private fun searchStops(query: String) {
+    searchJob?.cancel()
+    searchJob = viewModelScope.launch {
+        val result = repository.search(query)
+        ensureActive()
+        _uiState.update {
+            when (result) {
+                is StopSearchResult.Success -> it.copy(
+                    stopIds = result.stopIds.toList(), searchUnavailable = false,
+                )
+                StopSearchResult.Unavailable -> it.copy(searchUnavailable = true)
+            }
+        }
+    }
+}
+```
 
-## Actions, concurrency, and results
+Keep calls and publication sequential on Main, with no suspension between the
+cancellation check and state update. A completed Job may stay in the private field;
+the next request can cancel it harmlessly. Do not unconditionally clear shared
+loading flags or job fields in a cancelled job's `finally` block. Use `cancelAndJoin`
+inside structured orchestration only when old cleanup must finish before new work.
 
-Specify a policy per asynchronous operation rather than globally serializing every
-action:
+## UI-state-driven requests: flatMapLatest
 
-| Policy | Typical use | Required behavior |
-| --- | --- | --- |
-| Cancel/replace | New query or selection supersedes earlier work | Cancel old work and reject stale success, failure, and cleanup results. |
-| Ignore duplicates | Refresh or submit is already in progress | Define which request counts as a duplicate and when another becomes eligible. |
-| Queue | Ordered operations must all run | Bound or otherwise control pending work; define cancellation and failure behavior. |
-| Independent | Operations do not supersede one another | Isolate operation state and reconcile updates to shared fields. |
+When an input such as search text drives requests, the handler only updates UI state.
+Start one observer in the ViewModel; select and deduplicate that input so publishing
+results does not trigger another request. `flatMapLatest` cancels the previous inner
+flow and starts the latest request without a manually managed Job.
 
-Use structured concurrency in the ViewModel's scope. Make operation ownership
-visible through request identity, arguments, or generation tracking as appropriate.
-Cancellation alone does not guarantee an old result cannot arrive. An obsolete
-operation must not clear a newer loading flag, replace newer input, or emit an
-effect for an abandoned interaction.
+```kotlin
+init {
+    observeSearchQuery()
+}
 
-Use atomic state updates or serialized transitions where needed. Update lambdas
-and reducers must not launch work or emit effects if they can be evaluated again.
-Keep operation outcomes distinct from rendering snapshots; StateFlow can conflate
-intermediate values and is not a command queue.
+private fun observeSearchQuery() {
+    _uiState
+        .map { it.searchQuery }
+        .distinctUntilChanged()
+        .debounce(300) // Optional: wait for the input to settle.
+        .flatMapLatest { query ->
+            flow { emit(repository.search(query)) }
+        }
+        .buffer(0)
+        .onEach { result ->
+            _uiState.update {
+                when (result) {
+                    is StopSearchResult.Success -> it.copy(
+                        stopIds = result.stopIds.toList(), searchUnavailable = false,
+                    )
+                    StopSearchResult.Unavailable -> it.copy(searchUnavailable = true)
+                }
+            }
+        }
+        .launchIn(viewModelScope)
+}
+```
 
-Map expected domain failures to the feature's presentation policy. Preserve coroutine
-cancellation, and handle unexpected exceptions at an explicit boundary without
-silently converting them into success. Main-safety and dispatcher switching belong
-to the operation implementation as defined in architecture.md.
+Remove `debounce(300)` for immediate requests. With debounce, the previous request
+continues until the settled input reaches `flatMapLatest`, which cancels and replaces
+it. `buffer(0)` avoids queued inner results. These operators
+may require coroutine opt-ins for the installed version. Handle expected failures
+within each request so the observer can process future inputs; do not swallow
+cancellation. This observer runs for the ViewModel lifetime, including while hidden,
+and processes the initial query. Guard blank input or apply a narrower lifetime if
+required. Use a derived `stateIn` pipeline instead when subscription-driven work is
+intended; do not observe a UI state that itself depends on that same pipeline.
 
-## Navigation and effects
+## Collecting effects in the route
 
-ViewModels emit navigation intent rather than mutating history. Routes collect
-requests and the navigation owner applies them according to navigation.md, including
-active-entry eligibility, duplication, and stale-request policies.
+The example uses a lossy transient stream: no replay, no retention without a
+collector, and oldest-effect dropping on overflow. Even navigation may be dropped.
+This illustrates the [transient delivery contract](ui-state.md#state-and-one-time-effects)
+for immediate, repeatable interactions; it is not the default buffer policy for every
+feature. The navigation owner handles repeated taps and destination duplication.
 
-Use a dedicated stream for transient effects whose loss is acceptable, and acknowledged
-pending state for effects requiring recovery, as defined in ui-state.md. Document
-buffering, replay, consumption, and inactive-consumer behavior. Streams alone do not
-guarantee exactly-once delivery or process recovery.
+Collect once at the entry's route boundary. Launch snackbar work in the resumed
+scope so waiting for dismissal does not block subsequent navigation.
 
-Routes execute permissions, external operations, and UI effects. Return correlated
-results as actions; verify their request identity and phase before accepting them.
-An old acknowledgment must not clear a newer request. Do not expose a public method
-that allows callers to replace arbitrary internal state in order to acknowledge work.
+```kotlin
+// Inside the route; selectStopMessage is resolved with stringResource(...).
+// onNavigate accepts a stop ID and forwards intent to the navigation owner.
+val lifecycle = LocalLifecycleOwner.current.lifecycle
+val currentNavigate by rememberUpdatedState(onNavigate)
+val currentMessage by rememberUpdatedState(selectStopMessage)
+LaunchedEffect(viewModel, lifecycle, snackbarHostState) {
+    lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is StopsEffect.NavigateToArrivals -> currentNavigate(effect.stopId)
+                StopsEffect.ShowStopSelectionHint -> launch {
+                    snackbarHostState.showSnackbar(currentMessage)
+                }
+            }
+        }
+    }
+}
+```
 
-## Saved state and recovery
+The flow has one logical consumer. Leaving RESUMED cancels collection and snackbar
+children; repeated hints queue through SnackbarHostState while resumed. The navigation
+owner checks the originating entry before changing history. Screens send actions
+through `onAction` and do not collect effects.
 
-Inject `SavedStateHandle` when the ViewModel owns restorable inputs or pending
-requests. Define keys, value types, defaults, and validation in one discoverable
-place. Navigation keys are not assumed to populate saved state automatically.
+## Verification checklist
 
-Save minimal reconstruction inputs, such as a query, selected identity, or pending
-request identity and phase. Avoid saving complete datasets, coroutine jobs, raw
-exceptions, or platform objects. Keep durable user data and operations in appropriate
-repository persistence or background owners.
+- Every ViewModel requires tests of observable state and outputs, not private handlers.
+  Verify emitted effect types and payloads, including the chosen loss/overflow policy.
+- Cover initial/restored state, action preconditions, success/failure, and retry.
+  Include duplicates, stale results, cancellation, pending-request acknowledgment,
+  and visibility/collector restart behavior where applicable.
+- Use `runTest`, controllable domain fakes, and a test Main dispatcher (set/reset
+  through a rule) sharing the test scheduler. Test cancellation and out-of-order
+  completion, including stale cleanup. Test debounce timing and that result updates
+  do not retrigger input observers. Collect subscription-driven flows in tests. Verify
+  Android recreation on a device/emulator when that contract changes; unit
+  reconstruction alone does not prove platform recovery.
+- Before refactoring, identify state owners, consumers, and work lifetimes. Run relevant
+  checks and report material unverified behavior. Record feature-specific exceptions
+  with their rationale; do not silently weaken these rules.
 
-On system recreation, rebuild state from saved inputs and authoritative data.
-Revalidate selections and reconcile pending operations before retrying. Do not
-restore a loading flag for work that no longer exists or replay completed navigation
-and external operations. Define how uncertain external outcomes are resolved.
+## Related guidance
 
-SavedStateHandle supports saved-instance recovery, not a guarantee that data is
-durable across force stop, task removal, or every process interruption. Writes
-must participate in the host's save lifecycle. Use durable persistence when the
-workflow requires stronger guarantees.
-[Android saved-state guidance](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate)
-
-## Cleanup and work outside the screen
-
-Destination removal clears its ViewModel scope; temporary invisibility does not.
-Release any independently acquired resources using the relevant lifecycle or
-closeable mechanism. Do not rely on `onCleared` to persist critical data or complete
-a network operation: process termination may not run that cleanup.
-
-Polling and subscriptions need explicit visibility/lifetime policies. Work that must
-outlive destination removal belongs to a documented background owner. ViewModels
-observe that owner's status and issue commands through contracts rather than
-becoming the durable owner themselves.
-
-## Testing and refactoring
-
-Test public state and output behavior with domain fakes, controlled coroutine
-dispatchers, and a deterministic scheduler. Supply saved state when testing
-reconstruction. Account for subscription-driven pipelines by collecting their state
-in tests; do not assume an uncollected derived flow starts upstream work.
-
-Cover cases relevant to the feature:
-
-- Initialization with valid, invalid, missing, and restored inputs.
-- Action preconditions and expected state changes.
-- Success/failure and retry under the chosen data-retention policy.
-- Duplicate actions, overlapping work, cancellation, and out-of-order completion.
-- Navigation/effect output and stale or repeated acknowledgment.
-- Visibility transitions, collector restart, and interrupted-work recovery.
-
-Assert meaningful snapshots and invariants rather than every intermediate emission,
-private method call, or reducer shape. Unit reconstruction tests do not prove Android
-saved-state integration; use platform verification where that contract changes.
-
-Before splitting a ViewModel, map its state, inputs, operations, outputs, consumers,
-and work lifetimes. Assign each to its correct owner and identify shared data or
-long-lived work. Preserve intended behavior unless the task authorizes changes.
-Report relevant checks and any unverified lifecycle/recovery cases.
-
-## References
-
-These are project defaults; internal implementation patterns remain optional.
-
-- [ViewModel overview](https://developer.android.com/topic/libraries/architecture/viewmodel)
-  explains lifecycle-aware state ownership.
-- [ViewModel factories](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-factories)
-  explains supplying dependencies and saved-state support.
-- [SavedStateHandle](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate)
-  explains recovery inputs and saved-state limitations.
+- [Architecture](architecture.md): dependencies, domain contracts, failures, and background work.
+- [UI state](ui-state.md): state production, concurrency, effect delivery, and restoration.
+- [UI architecture](ui-architecture.md): route integration and platform effect execution.
+- [Navigation](navigation.md): entry scope, eligibility, history, and navigation requests.

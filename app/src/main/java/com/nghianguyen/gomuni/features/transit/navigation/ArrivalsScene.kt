@@ -7,7 +7,7 @@ import androidx.navigation3.scene.Scene
 import androidx.navigation3.scene.SceneStrategy
 import androidx.navigation3.scene.SceneStrategyScope
 import com.nghianguyen.gomuni.app.navigation.StopArrivalsKey
-import com.nghianguyen.gomuni.app.navigation.TransitStopsKey
+import com.nghianguyen.gomuni.app.navigation.isStopsParentOf
 import com.nghianguyen.gomuni.features.transit.map.ArrivalMapProjection
 import com.nghianguyen.gomuni.features.transit.stops.RouteStopsUiState
 
@@ -29,7 +29,7 @@ internal class ArrivalsSceneStrategy : SceneStrategy<NavKey> {
         val child = entries.lastOrNull() ?: return null
         val destination = child.metadata[TRANSIT_DESTINATION] as? StopArrivalsKey ?: return null
         val parent = entries.getOrNull(entries.lastIndex - 1) ?: return null
-        if (parent.metadata[TRANSIT_DESTINATION] != TransitStopsKey(destination.lineId, destination.operatorId)) return null
+        if (!isStopsParentOf(parent.metadata[TRANSIT_DESTINATION] as? NavKey, destination)) return null
         return ArrivalsScene(parent, child, destination, entries.dropLast(1))
     }
 }

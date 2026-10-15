@@ -16,18 +16,21 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    private var externalTarget by mutableStateOf<StopArrivalsKey?>(null)
+    private var pendingStopNavigation by mutableStateOf<StopArrivalsKey?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Saved navigation history already contains a consumed cold-launch target.
-        externalTarget = savedInstanceState?.getString("pending_stop")?.let { stopId ->
+        pendingStopNavigation = savedInstanceState?.getString("pending_stop")?.let { stopId ->
             savedInstanceState.getString("pending_line")?.let { StopArrivalsKey(it, stopId) }
         } ?: if (savedInstanceState == null) trackingTarget(intent) else null
         setContent {
             GoMuniTheme {
-                TransitNavigationHost(externalTarget) { externalTarget = null }
+                TransitNavigationHost(
+                    pendingStopNavigation = pendingStopNavigation,
+                    onStopNavigationHandled = { pendingStopNavigation = null },
+                )
             }
         }
     }
@@ -35,11 +38,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        externalTarget = trackingTarget(intent)
+        pendingStopNavigation = trackingTarget(intent)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        externalTarget?.let {
+        pendingStopNavigation?.let {
             outState.putString("pending_stop", it.stopId)
             outState.putString("pending_line", it.lineId)
         }

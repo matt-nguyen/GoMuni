@@ -1,4 +1,4 @@
-# Compose UI architecture conventions
+# UI architecture conventions
 
 ## Scope
 
@@ -6,6 +6,11 @@ These reusable conventions prescribe UI boundaries for Android applications usin
 Compose, MVVM, and Navigation 3. They do not describe a particular application's
 current structure. Apply them to new features and authorized refactors; preserve
 intended behavior during bug fixes and avoid unrelated architectural migrations.
+
+This document owns UI responsibility boundaries, dependency placement, action wiring,
+and extraction decisions. [Compose implementation](compose.md) owns API conventions,
+remembered state, effects, layout mechanics, accessibility, and previews. Read both
+for Compose work; link to the owning document instead of duplicating its rules.
 
 Use [Navigation conventions](navigation.md) for destination identity, back stacks,
 ViewModel scope, and navigation events. Use [UI state conventions](ui-state.md)
@@ -28,6 +33,24 @@ Use `FeatureRoute`, `FeatureScreen`, `FeatureUiState`, `FeatureAction`, and
 focused on its task. A route is an integration boundary, not a replacement for
 the ViewModel or an additional repository layer.
 
+## Composable responsibility checklist
+
+- Give each composable one clear role from the table above. Integration composables
+  may wire several concerns, but delegate destination display and platform execution
+  when those responsibilities obscure the wiring.
+- Extract a named helper for a coherent responsibility, not an arbitrary block or
+  line-count target. Keep private helpers beside their owner until reuse warrants
+  moving them. Do not add state holders or ViewModels just to shorten a function.
+- Pass narrow values and named callbacks across boundaries. Display helpers receive
+  history and callbacks; the navigation owner retains stack mutation and policy.
+  Keep testable eligibility/relationship rules in pure functions shared by their users.
+- Preserve state and lifecycle ownership during extraction: entry-scoped ViewModels,
+  effect keys and collection, saveable state, scene metadata, and inset ownership.
+- Follow [composable API conventions](compose.md#composable-apis-and-documentation)
+  for parameters, named arguments, and KDoc.
+- Before finishing, identify each composable's role and verify that helpers have not
+  acquired unrelated DI, business logic, platform work, or navigation policy.
+
 ## Route wrappers and state integration
 
 Acquire dependencies at the route/entry boundary using the project's dependency
@@ -44,8 +67,8 @@ screen is stateless.
 Route wrappers own explicit presentation state, such as scroll state, snackbar
 hosts, focus requesters, and sheet controllers, and provide what rendering needs
 to the screen. Hoisted helpers may manage these objects on the route's behalf.
-Use saveable state where restoration is required. Compose framework state objects
-are separate presentation inputs; do not embed them in immutable ViewModel UI state.
+Use [remembered-state mechanics](compose.md#remembered-state-and-restoration-mechanics)
+to construct and retain presentation objects according to this ownership.
 
 Screens and reusable components do not own feature state, collect flows, or launch
 coroutines/effects. Framework composables may manage their own intrinsic behavior;
@@ -87,9 +110,8 @@ named callbacks. Do not make the shared package depend on feature orchestration.
 Extract a meaningful reusable responsibility rather than every small layout block.
 Avoid adding speculative options that have no concrete use.
 
-Reuse existing design tokens and components. Place styling decisions in the design
-system; keep business rules in their state owners. Prefer stable item identity for
-lists and preserve accessibility semantics, descriptions, and interaction targets.
+Place styling decisions in the design system and business rules in their state
+owners. Rendering mechanics follow [Compose conventions](compose.md).
 
 ## Scaffolds, bars, and insets
 
@@ -98,10 +120,8 @@ rails. Each screen owns its destination scaffold, app bar, and content arrangeme
 The screen renders bars from supplied state and reports their actions through
 `onAction`; owning their layout does not imply owning navigation logic.
 
-Assign each system inset and padding responsibility to one level. When host and
-destination scaffolds coexist, explicitly coordinate their padding and consumed
-insets so content is neither obscured nor padded twice. Define keyboard inset
-handling where text entry requires it.
+Assign each system inset and padding responsibility to one level. Implementation
+follows [layout and inset mechanics](compose.md#layout-modifiers-insets-and-accessibility).
 
 The route owns snackbar, sheet, and other presentation controllers; the screen
 renders their hosts and surfaces using supplied inputs. Define whether each overlay
@@ -115,10 +135,9 @@ permission launchers, external operations, focus changes, and programmatic scrol
 Use lifecycle-aware effect collection and request correlation as specified in
 ui-state.md and navigation.md. Keep screen rendering independent of effect delivery.
 
-Use Compose effect APIs with deliberate keys and cleanup at this integration
-boundary. Avoid duplicate collectors, repeated launches on recomposition, and
-capturing outdated arguments or callbacks. App-wide external-entry handling stays
-at the app/navigation boundary and delegates to the appropriate flow.
+Use [Compose effect mechanics](compose.md#effects-and-lifecycle-integration) at this
+boundary. App-wide external-entry handling stays at the app/navigation boundary
+and delegates to the appropriate flow.
 
 ViewModels request effects without retaining Activity, launcher, focus, or scaffold
 objects. Platform results return as correlated actions to the correct owner.
@@ -127,40 +146,23 @@ than the ViewModel.
 
 ## Adaptive layouts
 
-Keep one UI state and action contract across compact and expanded layouts. Obtain
-current window size and posture at an integration boundary and supply adaptive
-inputs. Select layouts using the app window and available space rather than a
-fixed device category or orientation alone.
+Use one UI state and action contract across layout variants. The integration boundary
+supplies adaptive inputs; screens select their content arrangement. Do not introduce
+separate ViewModels or duplicate business state because panes move or become visible.
 
-Extract layout variants when that keeps rendering understandable; variants use
-the same contract and shared components. Do not introduce separate ViewModels or
-duplicate business state merely because a pane moves or becomes visible.
+Sizing and presentation-state mechanics follow
+[Compose layout conventions](compose.md#layout-modifiers-insets-and-accessibility).
+Multi-entry scenes, eligibility, history, and Back belong to [Navigation](navigation.md).
 
-Preserve inputs, selection, and presentation state through resizing and folding.
-Route-owned state holders should not be recreated solely because a different
-layout branch renders. Follow navigation.md for multi-entry scenes, active-entry
-eligibility, history, and Back behavior.
+## Verification
 
-## Previews and verification
+Before refactoring, identify responsibilities, state owners, and work lifetimes.
+Verify screen contracts at the screen boundary and integration at the route/navigation
+boundary. Record accepted exceptions with rationale and scope.
 
-Preview screens with representative supplied state, a no-op action callback, and
-preview-owned presentation objects. Preview setup may create state holders; the
-production screen remains independent of ViewModel lookup, network access, and DI.
-Use the project theme and cover meaningful states and adaptive layouts supported
-by the feature. Previews show rendering; they do not verify effect delivery.
-
-Test critical screen interactions by supplying state and checking the emitted
-typed actions. Test reusable components through their named callback contracts.
-Verify state transitions in ViewModel tests and integration behavior at the route
-or navigation boundary, including effect correlation and restoration when relevant.
-
-Check text scaling, accessibility, keyboard behavior, overlays, and host/screen
-inset coordination where the change affects them. Select verification appropriate
-to the change; avoid tests that only mirror private layout structure.
-
-Before refactoring, identify existing responsibilities, behavior, and state owners.
-Afterward, verify the affected contracts and document accepted exceptions. Report
-what was checked and any material unverified behavior.
+Use [Compose previews and checks](compose.md#previews-and-verification) for rendering
+and interactions, and [ViewModel tests](viewmodels.md#verification-checklist) for state
+and operation behavior. Report what ran and any material unverified behavior.
 
 ## References
 

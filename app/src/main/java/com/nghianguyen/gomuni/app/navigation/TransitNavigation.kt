@@ -20,6 +20,15 @@ class NavigationEvents {
     fun emit(event: TransitNavigation) { events.tryEmit(event) }
 }
 
+/** Whether stops and arrivals can participate in the same interactive scene. */
+internal fun isStopsParentOf(parent: NavKey?, child: NavKey?): Boolean =
+    parent is TransitStopsKey && child is StopArrivalsKey &&
+        parent.lineId == child.lineId && parent.operatorId == child.operatorId
+
+/** Accepts the current destination or the matching interactive stops parent. */
+internal fun canNavigate(origin: NavKey, current: NavKey?): Boolean =
+    origin == current || isStopsParentOf(origin, current)
+
 /** Pure stack policy shared by in-app navigation and external entry. */
 fun navigate(stack: MutableList<NavKey>, event: TransitNavigation) {
     when (event) {

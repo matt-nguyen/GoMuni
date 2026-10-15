@@ -23,7 +23,6 @@ import com.nghianguyen.gomuni.features.transit.navigation.LocalRetryStops
 import com.nghianguyen.gomuni.features.transit.navigation.LocalStopsContext
 import com.nghianguyen.gomuni.features.transit.navigation.LocalWideLayout
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.isActive
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,17 +49,6 @@ internal fun StopArrivalsRoute(
     DisposableEffect(presentation) { onDispose { presentation?.mapArrivals = null } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val currentTrackingRequest by rememberUpdatedState(onTrackingRequest)
-    fun submitTracking(request: TrackingRequest) {
-        currentTrackingRequest(request)
-        viewModel.acknowledgeTracking(request.requestId)
-    }
-    LaunchedEffect(viewModel, lifecycle) {
-        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            viewModel.trackingRequest.filterNotNull().collect {
-                submitTracking(it)
-            }
-        }
-    }
     CollectNavigation(viewModel.navigationEvents, onNavigate)
     val listState = rememberLazyListState()
     var elapsedMinutes by remember(state.fetchedAtMillis) { mutableLongStateOf(0) }
@@ -76,9 +64,9 @@ internal fun StopArrivalsRoute(
         if (it == StopArrivalsAction.Refresh && state.stop == null) onRetryContext()
         else if (it !is StopArrivalsAction.Track || trackingEnabled) {
             viewModel.onAction(it)
-            // Hand off a validated click before this entry can be popped. The collector
-            // above recovers saved requests; the host deduplicates both delivery paths.
-            if (it is StopArrivalsAction.Track) viewModel.trackingRequest.value?.let(::submitTracking)
+            if (it is StopArrivalsAction.Track) {
+                viewModel.takeTrackingRequest()?.let(currentTrackingRequest)
+            }
         }
     }
     if (LocalWideLayout.current) {

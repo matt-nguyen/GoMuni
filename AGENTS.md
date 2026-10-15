@@ -16,6 +16,8 @@ This is an Android application where users in San Francisco can look up bus stop
 Before planning, changing, or debugging code, read `docs/README.md`
 and follow its guidance to select relevant documents.
 Read those documents alongside the affected implementation.
+For Compose changes, read [UI architecture](docs/ui-architecture.md) for responsibilities
+and [Compose conventions](docs/compose.md) for implementation mechanics.
 
 ## UI Design
 

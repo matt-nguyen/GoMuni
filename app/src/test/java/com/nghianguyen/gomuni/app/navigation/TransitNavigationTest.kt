@@ -6,6 +6,19 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TransitNavigationTest {
+    @Test fun navigationEligibilityIncludesCurrentEntryAndMatchingSceneParentOnly() {
+        val parent = TransitStopsKey("38", "SF")
+        val child = StopArrivalsKey("38", "123", "SF")
+        assertTrue(canNavigate(child, child))
+        assertTrue(canNavigate(parent, child))
+        assertTrue(canNavigate(TransitLinesKey, TransitLinesKey))
+        assertFalse(canNavigate(TransitStopsKey("1", "SF"), child))
+        assertFalse(canNavigate(TransitStopsKey("38", "other"), child))
+        assertFalse(canNavigate(TransitLinesKey, child))
+        assertFalse(canNavigate(parent, null))
+        assertFalse(canNavigate(child, parent))
+    }
+
     @Test fun routeStopBackSequenceUsesHistoryAndDoesNotDuplicateEntries() {
         val stack = mutableListOf<NavKey>(TransitLinesKey)
         navigate(stack, TransitNavigation.OpenRoute("SF", "38"))
