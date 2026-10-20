@@ -43,11 +43,14 @@ internal fun TransitDestinationLayout(
         val mapHeight = if (wide) height else (height * COMPACT_MAP_HEIGHT_FRACTION).toInt()
         val panelWidth = if (wide) width - gap - mapWidth else width
         val panelHeight = if (wide) height else height - mapHeight
-        val map = measurables[0].measure(Constraints.fixed(mapWidth, mapHeight))
-        val panel = measurables[1].measure(Constraints.fixed(panelWidth, panelHeight))
+        val mapPlaceable = measurables[0].measure(Constraints.fixed(mapWidth, mapHeight))
+        val panelPlaceable = measurables[1].measure(Constraints.fixed(panelWidth, panelHeight))
         layout(width, height) {
-            map.placeRelative(0, 0)
-            panel.placeRelative(if (wide) mapWidth + gap else 0, if (wide) 0 else mapHeight)
+            mapPlaceable.placeRelative(0, 0)
+            panelPlaceable.placeRelative(
+                if (wide) mapWidth + gap else 0,
+                if (wide) 0 else mapHeight,
+            )
         }
     }
 }

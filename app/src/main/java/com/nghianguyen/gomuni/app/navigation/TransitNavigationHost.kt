@@ -131,7 +131,7 @@ private fun TransitNavDisplay(
                 entry<TransitLinesKey> {
                     TransitLinesRoute(
                         sharedMap = sharedMap,
-                        onNavigate = { onNavigate(TransitLinesKey, it) },
+                        onNavigate = { navigation -> onNavigate(TransitLinesKey, navigation) },
                     )
                 }
                 entry<TransitStopsKey> { key ->

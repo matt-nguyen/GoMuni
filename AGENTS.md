@@ -25,7 +25,7 @@ For Kotlin or Gradle Kotlin changes, run:
 
 ```powershell
 .\gradlew.bat spotlessApply
-.\gradlew.bat spotlessCheck :app:detekt
+.\gradlew.bat spotlessCheck :app:detektDebug
 ```
 
 ## UI Design

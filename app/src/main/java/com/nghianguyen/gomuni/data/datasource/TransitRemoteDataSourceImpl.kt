@@ -26,8 +26,10 @@ constructor(
             apiService.getStopMonitoring(
                 stopCode = stopId,
             )
-        return response.serviceDelivery.stopMonitoringDelivery.monitoredStopVisit?.map {
-            it.monitoredVehicleJourney.toDomain()
-        } ?: emptyList()
+        return response.serviceDelivery.stopMonitoringDelivery.monitoredStopVisit
+            ?.map {
+                it.monitoredVehicleJourney.toDomain()
+            }
+            .orEmpty()
     }
 }

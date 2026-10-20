@@ -67,10 +67,10 @@ class BusTrackingService : Service() {
         var restartMode = START_STICKY
         when (intent?.action) {
             ACTION_START -> {
-                stopId = intent.getStringExtra(EXTRA_STOP_ID) ?: ""
-                stopName = intent.getStringExtra(EXTRA_STOP_NAME) ?: ""
-                lineRef = intent.getStringExtra(EXTRA_LINE_REF) ?: ""
-                lineName = intent.getStringExtra(EXTRA_LINE_NAME) ?: ""
+                stopId = intent.getStringExtra(EXTRA_STOP_ID).orEmpty()
+                stopName = intent.getStringExtra(EXTRA_STOP_NAME).orEmpty()
+                lineRef = intent.getStringExtra(EXTRA_LINE_REF).orEmpty()
+                lineName = intent.getStringExtra(EXTRA_LINE_NAME).orEmpty()
                 vehicleRef = intent.getStringExtra(EXTRA_VEHICLE_REF)
                 startForegroundService()
                 persistSession()
@@ -147,7 +147,7 @@ class BusTrackingService : Service() {
                 if (targetArrival != null) {
                     val timeStr =
                         formatTrackingArrivalTime(
-                            targetArrival.expectedArrival ?: targetArrival.aimedArrival ?: "",
+                            (targetArrival.expectedArrival ?: targetArrival.aimedArrival).orEmpty(),
                         )
                     updateNotification("$timeStr MIN")
                 } else {
