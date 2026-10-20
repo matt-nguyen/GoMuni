@@ -75,11 +75,11 @@ internal fun StopArrivalsRoute(
     val listState = rememberLazyListState()
     var elapsedMinutes by remember(state.fetchedAtMillis) { mutableLongStateOf(0) }
     LaunchedEffect(state.fetchedAtMillis, lifecycle) {
+        val fetchedAtMillis = state.fetchedAtMillis ?: return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (isActive && state.fetchedAtMillis != null) {
+            while (isActive) {
                 elapsedMinutes =
-                    ((System.currentTimeMillis() - state.fetchedAtMillis!!) /
-                            ARRIVAL_AGE_TICK_MILLIS)
+                    ((System.currentTimeMillis() - fetchedAtMillis) / ARRIVAL_AGE_TICK_MILLIS)
                         .coerceAtLeast(
                             0,
                         )

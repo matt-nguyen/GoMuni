@@ -112,7 +112,7 @@ private const val TIME_PREFIX_LENGTH = 5
 private fun ArrivalEstimate(arrival: BusArrival) {
     val editorialColors = EditorialTheme.colors
     Column(horizontalAlignment = Alignment.End) {
-        val timeStr = formatArrivalTime(arrival.expectedArrival ?: arrival.aimedArrival ?: "")
+        val timeStr = formatArrivalTime((arrival.expectedArrival ?: arrival.aimedArrival).orEmpty())
         Text(
             text = timeStr,
             style = EditorialTheme.typography.titleLarge,

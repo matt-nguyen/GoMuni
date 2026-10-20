@@ -16,29 +16,29 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class DataModule {
+interface DataModule {
 
     @Binds
     @Singleton
-    abstract fun bindTransitRemoteDataSource(
+    fun bindTransitRemoteDataSource(
         transitRemoteDataSourceImpl: TransitRemoteDataSourceImpl,
     ): TransitRemoteDataSource
 
     @Binds
     @Singleton
-    abstract fun bindTransitLocalDataSource(
+    fun bindTransitLocalDataSource(
         transitLocalDataSourceImpl: TransitLocalDataSourceImpl,
     ): TransitLocalDataSource
 
     @Binds
     @Singleton
-    abstract fun bindTransitRepository(
+    fun bindTransitRepository(
         transitRepositoryImpl: TransitRepositoryImpl,
     ): TransitRepository
 
     @Binds
     @Singleton
-    abstract fun bindErrorLogger(
+    fun bindErrorLogger(
         analyticsErrorLogger: AnalyticsErrorLogger,
     ): ErrorLogger
 }
