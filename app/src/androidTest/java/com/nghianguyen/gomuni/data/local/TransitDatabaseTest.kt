@@ -1,9 +1,6 @@
 package com.nghianguyen.gomuni.data.local
 
 import androidx.room.Room
-import androidx.sqlite.db.SupportSQLiteDatabase
-import androidx.sqlite.db.SupportSQLiteOpenHelper
-import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nghianguyen.gomuni.data.datasource.TransitLocalDataSourceImpl
 import com.nghianguyen.gomuni.domain.model.TransitLine
@@ -12,17 +9,16 @@ import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-/** Verifies real Room transactions, completion markers, reopening, and the v2 migration. */
+/** Verifies real Room transactions, shared associations, rollback, and reopening. */
 class TransitDatabaseTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun initialLoads_whenReopened_preserveDataAndEmptyCompletionMarkers() = runBlocking {
+    fun initialLoads_whenReopened_preserveDataAndRollbackFailedStops() = runBlocking {
         val name = "initial-load-${UUID.randomUUID()}"
         try {
             Room.databaseBuilder(context, TransitDatabase::class.java, name).build().useDatabase {
@@ -38,15 +34,19 @@ class TransitDatabaseTest {
                     )
                     fail("Expected foreign key failure")
                 } catch (_: android.database.sqlite.SQLiteConstraintException) {
-                    assertFalse(local.isLoaded("stops:SF:missing"))
+                    assertTrue(local.getStopsForLine("missing").first().isEmpty())
+                    database
+                        .query("SELECT COUNT(*) FROM transit_stops WHERE id = 'bad'", emptyArray())
+                        .use { cursor ->
+                            assertTrue(cursor.moveToFirst())
+                            assertEquals(0, cursor.getInt(0))
+                        }
                 }
             }
             Room.databaseBuilder(context, TransitDatabase::class.java, name).build().useDatabase {
                 database ->
                 val local = TransitLocalDataSourceImpl(database)
                 assertEquals("38", local.getTransitLines().first().single().id)
-                assertTrue(local.isLoaded("lines:SF"))
-                assertTrue(local.isLoaded("stops:SF:38"))
                 assertTrue(local.getStopsForLine("38").first().isEmpty())
             }
         } finally {
@@ -109,6 +109,18 @@ class TransitDatabaseTest {
                         repository.ensureTransitStopsLoaded("SF", "38R")
                         assertEquals("123", repository.getTransitStops("38").first().single().id)
                         assertEquals("123", repository.getTransitStops("38R").first().single().id)
+                        local.storeInitialStops(
+                            "SF",
+                            "38R",
+                            listOf(TransitStop("123", "Updated", 37.78, -122.41, null, "38")),
+                        )
+                        assertEquals("Updated", local.getStopsForLine("38").first().single().name)
+                        assertEquals("38R", local.getStopsForLine("38R").first().single().lineId)
+                        database.query("SELECT COUNT(*) FROM transit_stops", emptyArray()).use {
+                            cursor ->
+                            assertTrue(cursor.moveToFirst())
+                            assertEquals(1, cursor.getInt(0))
+                        }
                     }
                 Room.databaseBuilder(context, TransitDatabase::class.java, name)
                     .build()
@@ -127,65 +139,9 @@ class TransitDatabaseTest {
                             "38R",
                             repository.getTransitStops("38R").first().single().lineId,
                         )
-                        assertTrue(local.isLoaded("stops:SF:38"))
-                        assertTrue(local.isLoaded("stops:SF:38R"))
                     }
                 assertEquals(listOf("SF"), lineCalls)
                 assertEquals(listOf("38", "38R"), stopCalls)
-            } finally {
-                context.deleteDatabase(name)
-            }
-        }
-
-    @Test
-    fun migration_whenVersionTwoContainsData_preservesRecordsAndMarksPopulatedDatasets() =
-        runBlocking {
-            val name = "migration-${UUID.randomUUID()}"
-            try {
-                val configuration =
-                    SupportSQLiteOpenHelper.Configuration.builder(context)
-                        .name(name)
-                        .callback(
-                            object : SupportSQLiteOpenHelper.Callback(2) {
-                                override fun onCreate(db: SupportSQLiteDatabase) {
-                                    db.execSQL(
-                                        "CREATE TABLE transit_lines (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, fromDate TEXT NOT NULL, toDate TEXT NOT NULL, transportMode TEXT NOT NULL, publicCode TEXT NOT NULL, siriLineRef TEXT NOT NULL, monitored INTEGER NOT NULL, operatorRef TEXT NOT NULL)",
-                                    )
-                                    db.execSQL(
-                                        "CREATE TABLE transit_stops (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL, stopType TEXT, lineId TEXT NOT NULL, FOREIGN KEY(lineId) REFERENCES transit_lines(id) ON DELETE CASCADE)",
-                                    )
-                                    db.execSQL(
-                                        "CREATE INDEX index_transit_stops_lineId ON transit_stops(lineId)",
-                                    )
-                                    db.execSQL(
-                                        "INSERT INTO transit_lines VALUES ('38', 'Geary', '', '', 'bus', '38', '38', 1, 'SF')",
-                                    )
-                                    db.execSQL(
-                                        "INSERT INTO transit_stops VALUES ('123', 'Market', 37.78, -122.41, NULL, '38')",
-                                    )
-                                }
-
-                                override fun onUpgrade(
-                                    db: SupportSQLiteDatabase,
-                                    oldVersion: Int,
-                                    newVersion: Int,
-                                ) = Unit
-                            },
-                        )
-                        .build()
-                FrameworkSQLiteOpenHelperFactory().create(configuration).use { helper ->
-                    helper.writableDatabase
-                }
-                Room.databaseBuilder(context, TransitDatabase::class.java, name)
-                    .addMigrations(MIGRATION_2_3)
-                    .build()
-                    .useDatabase { database ->
-                        val local = TransitLocalDataSourceImpl(database)
-                        assertEquals("Geary", local.getTransitLines().first().single().name)
-                        assertEquals("123", local.getStopsForLine("38").first().single().id)
-                        assertTrue(local.isLoaded("lines:SF"))
-                        assertTrue(local.isLoaded("stops:SF:38"))
-                    }
             } finally {
                 context.deleteDatabase(name)
             }

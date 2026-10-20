@@ -9,8 +9,6 @@ interface TransitLocalDataSource {
 
     fun getStopsForLine(lineId: String): Flow<List<TransitStop>>
 
-    suspend fun isLoaded(dataset: String): Boolean
-
     suspend fun storeInitialLines(operatorId: String, lines: List<TransitLine>)
 
     suspend fun storeInitialStops(operatorId: String, lineId: String, stops: List<TransitStop>)

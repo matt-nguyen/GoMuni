@@ -19,7 +19,7 @@ class TransitRepositoryImplTest {
     fun `cancelled data operations propagate without logging or clearing cache`() = runTest {
         val cancelled = CancellationException("Request cancelled")
         val remote = FakeRemoteDataSource().apply { failure = cancelled }
-        val local = FakeLocalDataSource()
+        val local = FakeLocalDataSource().apply { lines.value = emptyList() }
         val logger = RecordingErrorLogger()
         val repository = TransitRepositoryImpl(remote, local, logger)
         val operations: List<suspend () -> Unit> =
@@ -58,34 +58,34 @@ class TransitRepositoryImplTest {
     }
 
     @Test
-    fun `successful empty initial datasets are not fetched again across repository recreation`() =
-        runTest {
-            val local = FakeLocalDataSource()
-            val remote = FakeRemoteDataSource()
-            val first = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
-            first.ensureTransitStopsLoaded("SF", "19")
-            val recreated = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
-            recreated.ensureTransitLinesLoaded("SF")
-            recreated.ensureTransitStopsLoaded("SF", "19")
-            org.junit.Assert.assertEquals(1, remote.lineCalls)
-            org.junit.Assert.assertEquals(1, remote.stopCalls)
-            assertTrue(local.loaded.containsAll(setOf("lines:SF", "stops:SF:19")))
-        }
+    fun `empty datasets are fetched again across repository recreation`() = runTest {
+        val local = FakeLocalDataSource()
+        val remote = FakeRemoteDataSource().apply { lineResult = emptyList() }
+        val first = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
+        local.lines.value = emptyList()
+        first.ensureTransitStopsLoaded("SF", "19")
+        val recreated = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
+        recreated.ensureTransitLinesLoaded("SF")
+        recreated.ensureTransitStopsLoaded("SF", "19")
+        org.junit.Assert.assertEquals(3, remote.lineCalls)
+        org.junit.Assert.assertEquals(2, remote.stopCalls)
+    }
 
     @Test
-    fun `failed initial load does not mark completion and retry succeeds`() = runTest {
+    fun `failed initial load leaves cache empty and retry succeeds`() = runTest {
         val local = FakeLocalDataSource()
+        local.lines.value = emptyList()
         val remote = FakeRemoteDataSource().apply { failure = IOException("Offline") }
         val repository = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
         try {
             repository.ensureTransitLinesLoaded("SF")
             fail("Expected failure")
         } catch (_: TransitError) {}
-        assertTrue(local.loaded.isEmpty())
+        assertTrue(local.lines.value.isEmpty())
         remote.failure = null
         repository.ensureTransitLinesLoaded("SF")
         org.junit.Assert.assertEquals(2, remote.lineCalls)
-        assertTrue("lines:SF" in local.loaded)
+        assertTrue(local.lines.value.isNotEmpty())
     }
 
     @Test
@@ -93,7 +93,11 @@ class TransitRepositoryImplTest {
         val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
         val remote = FakeRemoteDataSource().apply { beforeLines = { gate.await() } }
         val repository =
-            TransitRepositoryImpl(remote, FakeLocalDataSource(), RecordingErrorLogger())
+            TransitRepositoryImpl(
+                remote,
+                FakeLocalDataSource().apply { lines.value = emptyList() },
+                RecordingErrorLogger(),
+            )
         val first = async { repository.ensureTransitLinesLoaded("SF") }
         val second = async { repository.ensureTransitLinesLoaded("SF") }
         gate.complete(Unit)

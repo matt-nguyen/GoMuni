@@ -13,6 +13,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 
@@ -40,7 +41,7 @@ constructor(
 
     private suspend fun loadLinesIfNeeded(operatorId: String) {
         try {
-            if (localDataSource.isLoaded("lines:$operatorId")) return
+            if (localDataSource.getTransitLines().first().isNotEmpty()) return
             val lines = remoteDataSource.getTransitLines(operatorId)
             localDataSource.storeInitialLines(operatorId, lines)
         } catch (cancelled: CancellationException) {
@@ -58,7 +59,7 @@ constructor(
         initialLoadMutex.withLock {
             loadLinesIfNeeded(operatorId)
             try {
-                if (!localDataSource.isLoaded("stops:$operatorId:$lineId")) {
+                if (localDataSource.getStopsForLine(lineId).first().isEmpty()) {
                     val stops = remoteDataSource.getTransitStops(operatorId, lineId)
                     localDataSource.storeInitialStops(operatorId, lineId, stops)
                 }

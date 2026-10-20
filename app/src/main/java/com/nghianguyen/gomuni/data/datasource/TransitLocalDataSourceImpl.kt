@@ -2,7 +2,7 @@ package com.nghianguyen.gomuni.data.datasource
 
 import androidx.room.withTransaction
 import com.nghianguyen.gomuni.data.local.TransitDatabase
-import com.nghianguyen.gomuni.data.local.entity.LoadedDatasetEntity
+import com.nghianguyen.gomuni.data.local.entity.TransitLineStopEntity
 import com.nghianguyen.gomuni.data.mapper.toDomain
 import com.nghianguyen.gomuni.data.mapper.toEntity
 import com.nghianguyen.gomuni.domain.model.TransitLine
@@ -17,15 +17,12 @@ class TransitLocalDataSourceImpl @Inject constructor(private val database: Trans
 
     override fun getStopsForLine(lineId: String) =
         database.transitStopDao().getStopsForLine(lineId).map { stops ->
-            stops.map { it.toDomain() }
+            stops.map { it.toDomain(lineId) }
         }
-
-    override suspend fun isLoaded(dataset: String) = database.loadedDatasetDao().isLoaded(dataset)
 
     override suspend fun storeInitialLines(operatorId: String, lines: List<TransitLine>) {
         database.withTransaction {
             database.transitLineDao().insertAll(lines.map { it.toEntity() })
-            database.loadedDatasetDao().markLoaded(LoadedDatasetEntity("lines:$operatorId"))
         }
     }
 
@@ -36,7 +33,9 @@ class TransitLocalDataSourceImpl @Inject constructor(private val database: Trans
     ) {
         database.withTransaction {
             database.transitStopDao().insertAll(stops.map { it.toEntity() })
-            database.loadedDatasetDao().markLoaded(LoadedDatasetEntity("stops:$operatorId:$lineId"))
+            database
+                .transitStopDao()
+                .insertAssociations(stops.map { TransitLineStopEntity(lineId, it.id) })
         }
     }
 }

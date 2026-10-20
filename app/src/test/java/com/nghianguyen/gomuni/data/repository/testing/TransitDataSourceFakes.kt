@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 internal class FakeLocalDataSource : TransitLocalDataSource {
     val lines = MutableStateFlow(listOf(TransitLine("19", "Polk", "bus")))
-    val loaded = mutableSetOf<String>()
     var cleared = false
     val stops = MutableStateFlow(emptyList<TransitStop>())
 
@@ -17,11 +16,8 @@ internal class FakeLocalDataSource : TransitLocalDataSource {
 
     override fun getStopsForLine(lineId: String) = stops
 
-    override suspend fun isLoaded(dataset: String) = dataset in loaded
-
     override suspend fun storeInitialLines(operatorId: String, lines: List<TransitLine>) {
         this.lines.value = lines
-        loaded += "lines:$operatorId"
     }
 
     override suspend fun storeInitialStops(
@@ -30,7 +26,6 @@ internal class FakeLocalDataSource : TransitLocalDataSource {
         stops: List<TransitStop>,
     ) {
         this.stops.value = stops
-        loaded += "stops:$operatorId:$lineId"
     }
 }
 
@@ -38,13 +33,14 @@ internal class FakeRemoteDataSource : TransitRemoteDataSource {
     var failure: Exception? = null
     var lineCalls = 0
     var stopCalls = 0
+    var lineResult = listOf(TransitLine("19", "Polk", "bus"))
     var beforeLines: suspend () -> Unit = {}
 
     override suspend fun getTransitLines(operatorId: String): List<TransitLine> {
         lineCalls++
         beforeLines()
         failure?.let { throw it }
-        return emptyList()
+        return lineResult
     }
 
     override suspend fun getTransitStops(operatorId: String, lineId: String): List<TransitStop> {
