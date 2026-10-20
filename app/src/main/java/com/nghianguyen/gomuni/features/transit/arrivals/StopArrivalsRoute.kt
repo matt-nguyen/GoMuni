@@ -39,7 +39,7 @@ import kotlinx.coroutines.isActive
  * @param context Authoritative stops and route metadata from the parent route.
  * @param trackingEnabled Whether tracking startup can be requested.
  * @param onTrackingRequest Hands a validated tracking target to the host.
- * @param onRetryContext Refreshes missing parent stop context.
+ * @param onRetryContext Retries initial loading of missing parent stop context.
  * @param onDismiss Closes this sheet session without navigating.
  * @param onMapArrivalsChanged Publishes or clears vehicle predictions for the shared map.
  */
@@ -62,7 +62,7 @@ internal fun StopArrivalsRoute(
     LaunchedEffect(context, stopId) {
         viewModel.updateContext(
             context.stops.find { it.id == stopId },
-            context.status == LoadStatus.LOADED && !context.isRefreshing,
+            context.status == LoadStatus.LOADED,
             context.lines,
             context.error,
         )

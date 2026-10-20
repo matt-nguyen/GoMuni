@@ -6,6 +6,7 @@ import com.nghianguyen.gomuni.domain.model.TransitError
 import com.nghianguyen.gomuni.testing.RecordingErrorLogger
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
@@ -23,8 +24,8 @@ class TransitRepositoryImplTest {
         val repository = TransitRepositoryImpl(remote, local, logger)
         val operations: List<suspend () -> Unit> =
             listOf(
-                { repository.refreshTransitLines("SF", forceRefresh = true) },
-                { repository.refreshTransitStops("SF", "19") },
+                { repository.ensureTransitLinesLoaded("SF") },
+                { repository.ensureTransitStopsLoaded("SF", "19") },
                 { repository.getBusArrivals("123") },
             )
 
@@ -54,5 +55,50 @@ class TransitRepositoryImplTest {
             assertSame(TransitError.Network, actual)
         }
         assertSame(failure, logger.errors.single())
+    }
+
+    @Test
+    fun `successful empty initial datasets are not fetched again across repository recreation`() =
+        runTest {
+            val local = FakeLocalDataSource()
+            val remote = FakeRemoteDataSource()
+            val first = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
+            first.ensureTransitStopsLoaded("SF", "19")
+            val recreated = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
+            recreated.ensureTransitLinesLoaded("SF")
+            recreated.ensureTransitStopsLoaded("SF", "19")
+            org.junit.Assert.assertEquals(1, remote.lineCalls)
+            org.junit.Assert.assertEquals(1, remote.stopCalls)
+            assertTrue(local.loaded.containsAll(setOf("lines:SF", "stops:SF:19")))
+        }
+
+    @Test
+    fun `failed initial load does not mark completion and retry succeeds`() = runTest {
+        val local = FakeLocalDataSource()
+        val remote = FakeRemoteDataSource().apply { failure = IOException("Offline") }
+        val repository = TransitRepositoryImpl(remote, local, RecordingErrorLogger())
+        try {
+            repository.ensureTransitLinesLoaded("SF")
+            fail("Expected failure")
+        } catch (_: TransitError) {}
+        assertTrue(local.loaded.isEmpty())
+        remote.failure = null
+        repository.ensureTransitLinesLoaded("SF")
+        org.junit.Assert.assertEquals(2, remote.lineCalls)
+        assertTrue("lines:SF" in local.loaded)
+    }
+
+    @Test
+    fun `concurrent initial requests fetch a dataset once`() = runTest {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val remote = FakeRemoteDataSource().apply { beforeLines = { gate.await() } }
+        val repository =
+            TransitRepositoryImpl(remote, FakeLocalDataSource(), RecordingErrorLogger())
+        val first = async { repository.ensureTransitLinesLoaded("SF") }
+        val second = async { repository.ensureTransitLinesLoaded("SF") }
+        gate.complete(Unit)
+        first.await()
+        second.await()
+        org.junit.Assert.assertEquals(1, remote.lineCalls)
     }
 }

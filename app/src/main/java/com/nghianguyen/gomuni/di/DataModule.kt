@@ -17,6 +17,11 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 interface DataModule {
+    @Binds
+    @Singleton
+    fun bindTransitFavoritesRepository(
+        implementation: com.nghianguyen.gomuni.data.repository.TransitFavoritesRepositoryImpl,
+    ): com.nghianguyen.gomuni.domain.repository.TransitFavoritesRepository
 
     @Binds
     @Singleton

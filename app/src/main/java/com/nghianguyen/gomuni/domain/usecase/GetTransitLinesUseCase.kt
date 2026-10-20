@@ -14,7 +14,7 @@ constructor(
         return repository.getTransitLines()
     }
 
-    suspend fun refresh(operatorId: String, forceRefresh: Boolean = false) {
-        repository.refreshTransitLines(operatorId, forceRefresh)
+    suspend fun ensureLoaded(operatorId: String) {
+        repository.ensureTransitLinesLoaded(operatorId)
     }
 }

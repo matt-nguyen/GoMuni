@@ -13,7 +13,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 
 // Translate storage, parsing and transport failures at the data boundary; preserve cancellation.
@@ -31,53 +31,42 @@ constructor(
         return localDataSource.getTransitLines()
     }
 
-    override suspend fun refreshTransitLines(operatorId: String, forceRefresh: Boolean) {
-        val lastSync = localDataSource.getLastSyncTime()
-        val currentTime = System.currentTimeMillis()
-        val isCacheEmpty = localDataSource.getTransitLines().first().isEmpty()
+    private val initialLoadMutex = kotlinx.coroutines.sync.Mutex()
 
-        if (forceRefresh || isCacheEmpty || (currentTime - lastSync) > cacheExpirationMillis) {
-            try {
-                val remoteLines = remoteDataSource.getTransitLines(operatorId)
+    override suspend fun ensureTransitLinesLoaded(operatorId: String) {
+        require(operatorId == "SF")
+        initialLoadMutex.withLock { loadLinesIfNeeded(operatorId) }
+    }
 
-                // Atomically update the cache
-                localDataSource.clearTransitLines()
-                localDataSource.saveTransitLines(remoteLines)
-
-                // Save the new sync time in DataStore
-                localDataSource.saveLastSyncTime(currentTime)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (e: Exception) {
-                handleError(
-                    e,
-                    "Transit lines refresh failed for operator: $operatorId",
-                    mapOf("operatorId" to operatorId),
-                    true,
-                )
-            }
+    private suspend fun loadLinesIfNeeded(operatorId: String) {
+        try {
+            if (localDataSource.isLoaded("lines:$operatorId")) return
+            val lines = remoteDataSource.getTransitLines(operatorId)
+            localDataSource.storeInitialLines(operatorId, lines)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            handleError(error, "Initial lines load failed", mapOf("operatorId" to operatorId), true)
         }
     }
 
-    override fun getTransitStops(lineId: String): Flow<List<TransitStop>> {
-        return localDataSource.getStopsForLine(lineId)
-    }
+    override fun getTransitStops(lineId: String): Flow<List<TransitStop>> =
+        localDataSource.getStopsForLine(lineId)
 
-    override suspend fun refreshTransitStops(operatorId: String, lineId: String) {
-        try {
-            val remoteStops = remoteDataSource.getTransitStops(operatorId, lineId)
-
-            localDataSource.deleteStopsForLine(lineId)
-            localDataSource.saveStopsForLine(lineId, remoteStops)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (e: Exception) {
-            handleError(
-                e,
-                "Transit stops refresh failed for line: $lineId",
-                mapOf("operatorId" to operatorId, "lineId" to lineId),
-                true,
-            )
+    override suspend fun ensureTransitStopsLoaded(operatorId: String, lineId: String) {
+        require(operatorId == "SF" && lineId.isNotBlank())
+        initialLoadMutex.withLock {
+            loadLinesIfNeeded(operatorId)
+            try {
+                if (!localDataSource.isLoaded("stops:$operatorId:$lineId")) {
+                    val stops = remoteDataSource.getTransitStops(operatorId, lineId)
+                    localDataSource.storeInitialStops(operatorId, lineId, stops)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                handleError(error, "Initial stops load failed", mapOf("lineId" to lineId), true)
+            }
         }
     }
 
@@ -124,5 +113,3 @@ constructor(
         if (shouldRethrow) throw domainError
     }
 }
-
-private val cacheExpirationMillis = java.time.Duration.ofDays(1).toMillis()

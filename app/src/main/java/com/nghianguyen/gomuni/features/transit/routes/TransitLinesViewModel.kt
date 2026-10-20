@@ -30,6 +30,8 @@ class TransitLinesViewModel
 constructor(
     private val repository: TransitRepository,
     private val savedStateHandle: SavedStateHandle,
+    private val favorites: com.nghianguyen.gomuni.domain.repository.TransitFavoritesRepository,
+    private val errorLogger: com.nghianguyen.gomuni.domain.util.ErrorLogger,
 ) : ViewModel() {
     private val state =
         MutableStateFlow(
@@ -44,7 +46,8 @@ constructor(
     val uiState = state.asStateFlow()
     private val navigation = NavigationEvents()
     val navigationEvents = navigation.flow
-    private var refreshJob: Job? = null
+    private var loadJob: Job? = null
+    private var favoritesJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -60,48 +63,111 @@ constructor(
                 }
             }
         }
-        refresh(false)
+        load()
+        observeFavorites()
     }
 
     fun onAction(action: TransitLinesAction) {
         when (action) {
-            TransitLinesAction.Refresh -> refresh(true)
-            is TransitLinesAction.ChangeSort -> {
-                savedStateHandle["sort"] = action.option.name
-                state.update {
-                    it.copy(sortOption = action.option, lines = sort(it.lines, action.option))
-                }
-            }
-            is TransitLinesAction.ChangeFilter -> {
-                if (action.filter !in listOf("All", "Local", "Rapid", "Express", "Owl")) return
-                savedStateHandle["filter"] = action.filter
-                state.update { it.copy(filter = action.filter) }
-            }
-            is TransitLinesAction.SelectRoute ->
-                if (state.value.lines.any { it.id == action.lineId }) {
-                    navigation.emit(TransitNavigation.OpenRoute("SF", action.lineId))
-                }
+            TransitLinesAction.RetryLoad -> load()
+            TransitLinesAction.RetryFavorites -> observeFavorites()
+            is TransitLinesAction.SetFavorite -> setFavorite(action.lineId, action.favorite)
+            is TransitLinesAction.ChangeSort -> changeSort(action.option)
+            is TransitLinesAction.ChangeFilter -> changeFilter(action.filter)
+            is TransitLinesAction.SelectRoute -> selectRoute(action.lineId)
         }
     }
 
-    private fun refresh(force: Boolean) {
-        if (refreshJob?.isActive == true) return
+    private fun changeSort(option: TransitLineSortOption) {
+        savedStateHandle["sort"] = option.name
+        state.update { it.copy(sortOption = option, lines = sort(it.lines, option)) }
+    }
+
+    private fun changeFilter(filter: String) {
+        if (filter !in listOf("All", "Local", "Rapid", "Express", "Owl")) return
+        savedStateHandle["filter"] = filter
+        state.update { it.copy(filter = filter) }
+    }
+
+    private fun selectRoute(lineId: String) {
+        if (state.value.lines.any { it.id == lineId })
+            navigation.emit(TransitNavigation.OpenRoute("SF", lineId))
+    }
+
+    private fun observeFavorites() {
+        if (favoritesJob?.isActive == true) return
+        state.update { it.copy(favoritesReady = false, favoriteError = null) }
+        favoritesJob = viewModelScope.launch {
+            try {
+                favorites.observeFavoriteIds().collect { ids ->
+                    state.update { it.copy(favoriteIds = ids.toSet(), favoritesReady = true) }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                favoriteFailure(error, FavoriteError.READ)
+            }
+        }
+    }
+
+    private fun setFavorite(lineId: String, favorite: Boolean) {
+        val current = state.value
+        if (
+            !current.favoritesReady ||
+                lineId in current.pendingFavoriteIds ||
+                current.lines.none { it.id == lineId }
+        )
+            return
+        if ((lineId in current.favoriteIds) == favorite) return
+        state.update {
+            it.copy(pendingFavoriteIds = it.pendingFavoriteIds + lineId, favoriteError = null)
+        }
+        viewModelScope.launch {
+            try {
+                favorites.setFavorite(lineId, favorite)
+                val confirmed = favorites.observeFavoriteIds().first { (lineId in it) == favorite }
+                state.update { it.copy(favoriteIds = confirmed.toSet()) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                favoriteFailure(error, FavoriteError.WRITE)
+            } finally {
+                state.update { it.copy(pendingFavoriteIds = it.pendingFavoriteIds - lineId) }
+            }
+        }
+    }
+
+    private fun favoriteFailure(error: Exception, failure: FavoriteError) {
+        // Expected storage errors were logged at the data boundary.
+        if (error !is com.nghianguyen.gomuni.domain.model.FavoritesStorageException) {
+            errorLogger.log("Favorites failed", error)
+        }
+        state.update {
+            it.copy(
+                favoritesReady = if (failure == FavoriteError.READ) false else it.favoritesReady,
+                // Keep read recovery available if a pending write fails after observation stops.
+                favoriteError =
+                    if (it.favoriteError == FavoriteError.READ) FavoriteError.READ else failure,
+            )
+        }
+    }
+
+    private fun load() {
+        if (loadJob?.isActive == true || state.value.status == LoadStatus.LOADED) return
         state.update {
             it.copy(
                 status = if (it.lines.isEmpty()) LoadStatus.LOADING else LoadStatus.LOADED,
-                isRefreshing = true,
                 error = null,
             )
         }
-        refreshJob = viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             try {
-                repository.refreshTransitLines("SF", force)
+                repository.ensureTransitLinesLoaded("SF")
                 val lines = repository.getTransitLines().first()
                 state.update {
                     it.copy(
                         lines = sort(lines, it.sortOption),
                         status = LoadStatus.LOADED,
-                        isRefreshing = false,
                         error = null,
                     )
                 }
@@ -111,7 +177,6 @@ constructor(
                 state.update {
                     it.copy(
                         status = LoadStatus.FAILED,
-                        isRefreshing = false,
                         error = transitFailureMessage(error),
                     )
                 }

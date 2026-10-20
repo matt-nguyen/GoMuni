@@ -14,7 +14,4 @@ interface TransitStopDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(stops: List<TransitStopEntity>): List<Long>
-
-    @Query("DELETE FROM transit_stops WHERE lineId = :lineId")
-    suspend fun deleteStopsForLine(lineId: String): Int
 }

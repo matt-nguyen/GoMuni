@@ -8,11 +8,13 @@ import kotlinx.coroutines.flow.Flow
 interface TransitRepository {
     fun getTransitLines(): Flow<List<TransitLine>>
 
-    suspend fun refreshTransitLines(operatorId: String, forceRefresh: Boolean = false)
+    /** Loads once when needed. Successful empty datasets are also persisted as complete. */
+    suspend fun ensureTransitLinesLoaded(operatorId: String)
 
     fun getTransitStops(lineId: String): Flow<List<TransitStop>>
 
-    suspend fun refreshTransitStops(operatorId: String, lineId: String)
+    /** Ensures line metadata first, then loads this route once. Failed loads may be retried. */
+    suspend fun ensureTransitStopsLoaded(operatorId: String, lineId: String)
 
     suspend fun getBusArrivals(stopId: String): List<BusArrival>
 }

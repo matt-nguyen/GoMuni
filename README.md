@@ -14,6 +14,7 @@ Captured from the current debug build on a Pixel 6 running Android 16. Arrival t
 ## Features
 
 - **Route discovery:** browse Muni bus routes, filter by Local, Rapid, Express, or Owl service, and sort by route ID or name.
+- **Favorite routes:** save lines locally and show matching favorites first, with the same filtering and sorting.
 - **Map and stop browsing:** view a route's stops on a Mapbox map and in a list with stop names and IDs; see incoming vehicles when data is available.
 - **Live arrivals:** check upcoming buses, minute estimates, vehicle IDs when provided, and the last update time. Refresh arrivals on demand.
 - **Bus tracking:** tap an arrival's bell to follow it through an ongoing Android notification, with actions to refresh its ETA or stop tracking. Tap the notification to return to the stop. Notification permission is required.

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,7 +32,6 @@ fun TransitExplorerTopBar(
     canGoBack: Boolean,
     routesState: RoutesUiState,
     onBack: () -> Unit,
-    onRefresh: () -> Unit,
     onSort: (TransitLineSortOption) -> Unit,
     menuVisible: Boolean = false,
     onMenuVisibilityChanged: (Boolean) -> Unit = {},
@@ -59,13 +57,6 @@ fun TransitExplorerTopBar(
         },
         actions = {
             if (routeColor == null) {
-                IconButton(onClick = onRefresh, enabled = !routesState.isRefreshing) {
-                    Icon(
-                        Icons.Default.Refresh,
-                        stringResource(R.string.refresh_routes),
-                        tint = colors.editorialPaper,
-                    )
-                }
                 IconButton(onClick = { onMenuVisibilityChanged(true) }) {
                     Icon(
                         Icons.Default.MoreVert,

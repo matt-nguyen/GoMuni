@@ -12,7 +12,7 @@ import com.nghianguyen.gomuni.ui.theme.GoMuniTheme
 
 @Preview(widthDp = 900, heightDp = 600)
 @Composable
-private fun WideStopsRefreshFailurePreview() {
+private fun WideStopsLoadFailurePreview() {
     GoMuniTheme {
         RouteStopsScreen(
             RouteStopsUiState(

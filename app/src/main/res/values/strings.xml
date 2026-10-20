@@ -6,7 +6,6 @@
     <string name="sort_options">Sort options</string>
     <string name="sort_id">Sort by ID</string>
     <string name="sort_name">Sort by name</string>
-    <string name="refresh_routes">Refresh routes</string>
     <string name="refresh_arrivals">Refresh arrivals</string>
     <string name="retry">Retry</string>
     <string name="close_arrivals">Close arrivals</string>
@@ -20,4 +19,8 @@
     <string name="tracking_starting">Starting bus tracking…</string>
     <string name="tracking_start_failed">Unable to start bus tracking. Please try again.</string>
     <string name="dismiss">Dismiss</string>
+    <string name="favorite_line">Favorite line %1$s</string>
+    <string name="unfavorite_line">Remove line %1$s from favorites</string>
+    <string name="favorites_read_failed">Unable to load favorites. Try again.</string>
+    <string name="favorites_write_failed">Unable to save your favorite. Tap the star to try again.</string>
 </resources>

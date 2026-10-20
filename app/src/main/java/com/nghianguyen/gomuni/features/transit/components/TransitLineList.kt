@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,13 +27,34 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nghianguyen.gomuni.R
 import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.ui.components.EditorialDivider
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
+/**
+ * Renders sorted lines with filtered favorites first; row and star actions remain separate.
+ *
+ * @param lines Available lines in the selected sort order.
+ * @param selectedLineId Optional selected line identity.
+ * @param onLineClick Reports row navigation intent.
+ * @param modifier Caller placement.
+ * @param activeFilter Route-type filter applied to both groups.
+ * @param onFilterSelected Reports filter selection.
+ * @param listState Route-owned list position.
+ * @param filterScrollState Route-owned filter scroll position.
+ * @param favoriteIds Confirmed favorite identities, including unavailable lines.
+ * @param pendingFavoriteIds Lines whose favorite controls are disabled during persistence.
+ * @param favoritesReady Whether stored preferences are available for editing.
+ * @param onFavoriteChanged Reports an explicit desired favorite membership.
+ */
 @Composable
 fun TransitLineList(
     lines: List<TransitLine>,
@@ -40,13 +65,17 @@ fun TransitLineList(
     onFilterSelected: (String) -> Unit = {},
     listState: androidx.compose.foundation.lazy.LazyListState,
     filterScrollState: androidx.compose.foundation.ScrollState,
+    favoriteIds: Set<String> = emptySet(),
+    pendingFavoriteIds: Set<String> = emptySet(),
+    favoritesReady: Boolean = false,
+    onFavoriteChanged: (String, Boolean) -> Unit = { _, _ -> },
 ) {
 
-    val filteredLines =
-        remember(lines, activeFilter) {
-            if (activeFilter == "All") lines
-            else lines.filter { matchesRouteFilter(it, activeFilter) }
+    val groups =
+        remember(lines, activeFilter, favoriteIds) {
+            groupTransitLines(lines, activeFilter, favoriteIds)
         }
+    val displayedLines = groups.favorites + groups.others
 
     LazyColumn(
         state = listState,
@@ -62,10 +91,27 @@ fun TransitLineList(
             EditorialDivider()
         }
 
-        items(filteredLines, key = { it.id }) { line ->
+        items(displayedLines, key = { it.id }) { line ->
             val isSelected = line.id == selectedLineId
 
-            TransitLineRow(line, isSelected, onLineClick)
+            if (
+                groups.favorites.isNotEmpty() &&
+                    groups.others.isNotEmpty() &&
+                    line.id == groups.others.first().id
+            ) {
+                EditorialDivider(
+                    Modifier.padding(vertical = EditorialTheme.spacing.spaceXs)
+                        .testTag("favorites-divider"),
+                )
+            }
+            TransitLineRow(
+                line = line,
+                isSelected = isSelected,
+                onLineClick = onLineClick,
+                isFavorite = line.id in favoriteIds,
+                favoriteEnabled = favoritesReady && line.id !in pendingFavoriteIds,
+                onFavoriteChanged = onFavoriteChanged,
+            )
             EditorialDivider()
         }
     }
@@ -137,7 +183,14 @@ private fun RouteListHeading() {
 }
 
 @Composable
-private fun TransitLineRow(line: TransitLine, isSelected: Boolean, onLineClick: (String) -> Unit) {
+private fun TransitLineRow(
+    line: TransitLine,
+    isSelected: Boolean,
+    onLineClick: (String) -> Unit,
+    isFavorite: Boolean,
+    favoriteEnabled: Boolean,
+    onFavoriteChanged: (String, Boolean) -> Unit,
+) {
     val editorialColors = EditorialTheme.colors
     val routeColor = getRouteColor(line, editorialColors)
     Row(
@@ -172,19 +225,37 @@ private fun TransitLineRow(line: TransitLine, isSelected: Boolean, onLineClick: 
         ) {
             RouteLabel(line, routeColor, Modifier.weight(1f, fill = false))
 
-            Box(
-                modifier =
-                    Modifier.background(editorialColors.surfaceContainerHigh)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-            ) {
-                Text(
-                    text = line.transportMode.toTitleCase(),
-                    style = EditorialTheme.typography.labelSmall,
-                    color = editorialColors.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+            FavoriteLineControl(line.id, isFavorite, favoriteEnabled, onFavoriteChanged)
         }
+    }
+}
+
+@Composable
+private fun FavoriteLineControl(
+    lineId: String,
+    isFavorite: Boolean,
+    enabled: Boolean,
+    onFavoriteChanged: (String, Boolean) -> Unit,
+) {
+    val editorialColors = EditorialTheme.colors
+    IconToggleButton(
+        checked = isFavorite,
+        onCheckedChange = { onFavoriteChanged(lineId, it) },
+        enabled = enabled,
+    ) {
+        Icon(
+            painter =
+                if (isFavorite) rememberVectorPainter(Icons.Filled.Star)
+                else painterResource(R.drawable.ic_star_outline),
+            contentDescription =
+                stringResource(
+                    if (isFavorite) R.string.unfavorite_line else R.string.favorite_line,
+                    lineId,
+                ),
+            tint =
+                if (isFavorite) editorialColors.signalChartreuse
+                else editorialColors.onSurfaceVariant,
+        )
     }
 }
 
@@ -223,4 +294,20 @@ internal fun matchesRouteFilter(line: TransitLine, filter: String): Boolean {
         "Owl" -> id.endsWith("OWL")
         else -> true
     }
+}
+
+internal data class TransitLineGroups(
+    val favorites: List<TransitLine>,
+    val others: List<TransitLine>,
+)
+
+/** Preserves the caller's sort order within each group and renders each identity once. */
+internal fun groupTransitLines(
+    lines: List<TransitLine>,
+    filter: String,
+    favoriteIds: Set<String>,
+): TransitLineGroups {
+    val visible = lines.distinctBy { it.id }.filter { matchesRouteFilter(it, filter) }
+    val (favorites, others) = visible.partition { it.id in favoriteIds }
+    return TransitLineGroups(favorites, others)
 }

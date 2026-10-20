@@ -6,46 +6,49 @@ import com.nghianguyen.gomuni.domain.model.BusArrival
 import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.domain.model.TransitStop
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
 
 internal class FakeLocalDataSource : TransitLocalDataSource {
     val lines = MutableStateFlow(listOf(TransitLine("19", "Polk", "bus")))
-    var lastSync = 1L
+    val loaded = mutableSetOf<String>()
     var cleared = false
+    val stops = MutableStateFlow(emptyList<TransitStop>())
 
     override fun getTransitLines() = lines
 
-    override suspend fun saveTransitLines(lines: List<TransitLine>) {
+    override fun getStopsForLine(lineId: String) = stops
+
+    override suspend fun isLoaded(dataset: String) = dataset in loaded
+
+    override suspend fun storeInitialLines(operatorId: String, lines: List<TransitLine>) {
         this.lines.value = lines
+        loaded += "lines:$operatorId"
     }
 
-    override suspend fun clearTransitLines() {
-        cleared = true
-        lines.value = emptyList()
-    }
-
-    override fun getStopsForLine(lineId: String) = flowOf(emptyList<TransitStop>())
-
-    override suspend fun saveStopsForLine(lineId: String, stops: List<TransitStop>) = Unit
-
-    override suspend fun deleteStopsForLine(lineId: String) = Unit
-
-    override suspend fun getLastSyncTime() = lastSync
-
-    override suspend fun saveLastSyncTime(timestamp: Long) {
-        lastSync = timestamp
+    override suspend fun storeInitialStops(
+        operatorId: String,
+        lineId: String,
+        stops: List<TransitStop>,
+    ) {
+        this.stops.value = stops
+        loaded += "stops:$operatorId:$lineId"
     }
 }
 
 internal class FakeRemoteDataSource : TransitRemoteDataSource {
     var failure: Exception? = null
+    var lineCalls = 0
+    var stopCalls = 0
+    var beforeLines: suspend () -> Unit = {}
 
     override suspend fun getTransitLines(operatorId: String): List<TransitLine> {
+        lineCalls++
+        beforeLines()
         failure?.let { throw it }
         return emptyList()
     }
 
     override suspend fun getTransitStops(operatorId: String, lineId: String): List<TransitStop> {
+        stopCalls++
         failure?.let { throw it }
         return emptyList()
     }

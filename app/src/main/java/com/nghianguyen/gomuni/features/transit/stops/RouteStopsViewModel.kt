@@ -53,8 +53,7 @@ constructor(
     val uiState = state.asStateFlow()
     private val navigation = NavigationEvents()
     val navigationEvents = navigation.flow
-    private var refreshJob: Job? = null
-    private var generation = 0L
+    private var loadJob: Job? = null
 
     init {
         if (route.lineId.isBlank() || route.operatorId.isBlank()) {
@@ -83,14 +82,14 @@ constructor(
                     fail(error)
                 }
             }
-            refresh()
+            load()
         }
     }
 
     fun onAction(action: RouteStopsAction) {
         when (action) {
             RouteStopsAction.Back -> goBack()
-            RouteStopsAction.Refresh -> refresh()
+            RouteStopsAction.RetryLoad -> load()
             is RouteStopsAction.SelectStop -> selectStop(action.stopId)
             is RouteStopsAction.OpenArrivals -> openArrivals(action.stopId)
             is RouteStopsAction.DismissArrivals -> dismissArrivals(action.stopId)
@@ -119,35 +118,30 @@ constructor(
         state.update { it.copy(arrivalsStopId = null) }
     }
 
-    private fun refresh() {
-        if (route.lineId.isBlank() || route.operatorId.isBlank() || refreshJob?.isActive == true)
-            return
-        val version = ++generation
+    private fun load() {
+        if (route.lineId.isBlank() || route.operatorId.isBlank()) return
+        if (loadJob?.isActive == true || state.value.status == LoadStatus.LOADED) return
         state.update {
             it.copy(
                 status = if (it.stops.isEmpty()) LoadStatus.LOADING else LoadStatus.LOADED,
-                isRefreshing = true,
                 error = null,
             )
         }
-        refreshJob = viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             try {
-                repository.refreshTransitStops(route.operatorId, route.lineId)
+                repository.ensureTransitStopsLoaded(route.operatorId, route.lineId)
                 val stops = repository.getTransitStops(route.lineId).first()
-                if (version == generation) updateStops(stops, true)
+                updateStops(stops, true)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                if (version == generation) fail(error)
+                fail(error)
             }
         }
     }
 
     private fun updateStops(stops: List<TransitStop>, authoritative: Boolean) {
         val current = state.value
-        // Delete/insert refresh emits a temporary empty list; only the final snapshot removes
-        // selection.
-        if (current.isRefreshing && !authoritative && stops.isEmpty()) return
         val selected =
             current.selectedStopId?.takeUnless { id ->
                 authoritative && stops.none { it.id == id }
@@ -158,7 +152,6 @@ constructor(
                 stops = stops,
                 selectedStopId = selected,
                 status = if (authoritative) LoadStatus.LOADED else it.status,
-                isRefreshing = if (authoritative) false else it.isRefreshing,
                 error = if (authoritative) null else it.error,
             )
         }
@@ -168,7 +161,6 @@ constructor(
         state.update {
             it.copy(
                 status = LoadStatus.FAILED,
-                isRefreshing = false,
                 error = transitFailureMessage(error),
             )
         }

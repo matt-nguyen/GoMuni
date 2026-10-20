@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
+import com.nghianguyen.gomuni.data.local.MIGRATION_2_3
 import com.nghianguyen.gomuni.data.local.TransitDatabase
 import com.nghianguyen.gomuni.data.local.dao.TransitLineDao
 import com.nghianguyen.gomuni.data.local.dao.TransitStopDao
@@ -30,6 +31,7 @@ object DatabaseModule {
                 TransitDatabase::class.java,
                 "transit_database",
             )
+            .addMigrations(MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }

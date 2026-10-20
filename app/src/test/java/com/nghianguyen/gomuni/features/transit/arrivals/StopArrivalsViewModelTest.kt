@@ -56,7 +56,7 @@ class StopArrivalsViewModelTest {
             runCurrent()
             assertEquals(listOf(testArrival), viewModel.uiState.value.predictions)
             assertEquals(LoadStatus.FAILED, viewModel.uiState.value.status)
-            assertEquals(0, repository.stopRefreshes)
+            assertEquals(0, repository.stopLoads)
         }
 
     @Test

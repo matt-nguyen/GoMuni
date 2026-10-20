@@ -7,7 +7,16 @@ data class RoutesUiState(
     val lines: List<TransitLine> = emptyList(),
     val sortOption: TransitLineSortOption = TransitLineSortOption.ID,
     val status: LoadStatus = LoadStatus.NOT_LOADED,
-    val isRefreshing: Boolean = false,
+    val favoriteIds: Set<String> = emptySet(),
+    val pendingFavoriteIds: Set<String> = emptySet(),
+    val favoritesReady: Boolean = false,
+    val favoriteError: FavoriteError? = null,
     val error: String? = null,
     val filter: String = "All",
 )
+
+/** Independent of route-data loading errors. */
+enum class FavoriteError {
+    READ,
+    WRITE,
+}

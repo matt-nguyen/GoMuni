@@ -3,7 +3,7 @@ package com.nghianguyen.gomuni.features.transit.stops
 sealed interface RouteStopsAction {
     data object Back : RouteStopsAction
 
-    data object Refresh : RouteStopsAction
+    data object RetryLoad : RouteStopsAction
 
     /** External entry can open before stops have loaded; missing stops render a sheet error. */
     data class OpenArrivals(val stopId: String) : RouteStopsAction

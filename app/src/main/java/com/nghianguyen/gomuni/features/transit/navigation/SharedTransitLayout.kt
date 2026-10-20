@@ -142,7 +142,6 @@ internal fun SharedTransitLayout(
                     canGoBack = false,
                     routesState = RoutesUiState(),
                     onBack = {},
-                    onRefresh = {},
                     onSort = {},
                 )
         },

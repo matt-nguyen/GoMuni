@@ -1,10 +1,13 @@
 package com.nghianguyen.gomuni.features.transit.routes
 
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -81,7 +84,6 @@ internal fun TransitLinesTopBar(
         canGoBack = false,
         routesState = uiState,
         onBack = {},
-        onRefresh = { onAction(TransitLinesAction.Refresh) },
         onSort = { onAction(TransitLinesAction.ChangeSort(it)) },
         menuVisible = menuVisible,
         onMenuVisibilityChanged = onMenuVisibilityChanged,
@@ -108,21 +110,46 @@ internal fun TransitLinesPanel(
     TransitLoadContent(
         uiState.lines.isNotEmpty(),
         uiState.status.isLoading,
-        uiState.isRefreshing,
+        false,
         uiState.error,
         stringResource(R.string.no_routes),
-        { onAction(TransitLinesAction.Refresh) },
+        { onAction(TransitLinesAction.RetryLoad) },
         modifier,
     ) {
-        TransitLineList(
-            uiState.lines,
-            null,
-            { id -> onAction(TransitLinesAction.SelectRoute(id)) },
-            it,
-            uiState.filter,
-            { filter -> onAction(TransitLinesAction.ChangeFilter(filter)) },
-            listState,
-            filterScrollState,
-        )
+        Column(it) {
+            if (uiState.favoriteError != null) {
+                Text(
+                    text =
+                        stringResource(
+                            if (uiState.favoriteError == FavoriteError.READ)
+                                R.string.favorites_read_failed
+                            else R.string.favorites_write_failed,
+                        ),
+                    color = EditorialTheme.colors.electricAlert,
+                    modifier = Modifier.padding(EditorialTheme.spacing.spaceMd),
+                )
+                if (uiState.favoriteError == FavoriteError.READ) {
+                    TextButton(onClick = { onAction(TransitLinesAction.RetryFavorites) }) {
+                        Text(stringResource(R.string.retry))
+                    }
+                }
+            }
+            TransitLineList(
+                lines = uiState.lines,
+                selectedLineId = null,
+                onLineClick = { id -> onAction(TransitLinesAction.SelectRoute(id)) },
+                modifier = Modifier.weight(1f),
+                activeFilter = uiState.filter,
+                onFilterSelected = { filter -> onAction(TransitLinesAction.ChangeFilter(filter)) },
+                listState = listState,
+                filterScrollState = filterScrollState,
+                favoriteIds = uiState.favoriteIds,
+                pendingFavoriteIds = uiState.pendingFavoriteIds,
+                favoritesReady = uiState.favoritesReady,
+                onFavoriteChanged = { id, favorite ->
+                    onAction(TransitLinesAction.SetFavorite(id, favorite))
+                },
+            )
+        }
     }
 }
