@@ -14,10 +14,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.nghianguyen.gomuni.MainActivity
 import com.nghianguyen.gomuni.R
-import com.nghianguyen.gomuni.domain.model.TransitError
+import com.nghianguyen.gomuni.domain.model.Outcome
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -135,11 +136,18 @@ class BusTrackingService : Service() {
         }
     }
 
+    // The notification boundary logs unexpected failures and keeps the session recoverable.
+    @Suppress("TooGenericExceptionCaught")
     private fun refreshArrivals() {
         refreshJob?.cancel()
         refreshJob = serviceScope.launch {
             try {
-                val arrivals = repository.getBusArrivals(stopId)
+                val result = repository.getBusArrivals(stopId)
+                if (result is Outcome.Failure) {
+                    updateNotification("Error refreshing data")
+                    return@launch
+                }
+                val arrivals = (result as Outcome.Success).value
                 val targetArrival = arrivals.find {
                     it.lineRef == lineRef && (vehicleRef == null || it.vehicleRef == vehicleRef)
                 }
@@ -153,7 +161,9 @@ class BusTrackingService : Service() {
                 } else {
                     updateNotification("Arrival data unavailable")
                 }
-            } catch (error: TransitError) {
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
                 Log.e("BusTrackingService", "Unable to refresh tracked arrival", error)
                 updateNotification("Error refreshing data")
             }

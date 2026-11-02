@@ -46,18 +46,18 @@ class RouteStopsViewModelTest {
     }
 
     @Test
-    fun `stops ignore intermediate empty refresh and clear removed selection only at completion`() =
+    fun `initial stop loading resolves removed selection at completion`() =
         runTest(mainDispatcherRule.dispatcher) {
             repository.stops.value = listOf(testStop)
             val refresh = CompletableDeferred<Unit>()
-            repository.refreshStops = { refresh.await() }
+            repository.loadStops = { refresh.await() }
             val saved = SavedStateHandle(mapOf("selected_stop" to testStop.id))
             val viewModel =
                 retain(RouteStopsViewModel(repository, saved, route, RecordingErrorLogger()))
             runCurrent()
             repository.stops.value = emptyList()
             runCurrent()
-            assertEquals(listOf(testStop), viewModel.uiState.value.stops)
+            assertTrue(viewModel.uiState.value.stops.isEmpty())
             assertEquals(testStop.id, viewModel.uiState.value.selectedStopId)
             refresh.complete(Unit)
             runCurrent()
@@ -68,10 +68,10 @@ class RouteStopsViewModelTest {
         }
 
     @Test
-    fun `stop refresh failure retains cached content and can retry`() =
+    fun `initial stop load failure retains available content and can retry`() =
         runTest(mainDispatcherRule.dispatcher) {
             repository.stops.value = listOf(testStop)
-            repository.refreshStops = { throw TransitError.Network }
+            repository.stopLoadFailure = TransitError.Network
             val viewModel =
                 retain(
                     RouteStopsViewModel(
@@ -85,8 +85,8 @@ class RouteStopsViewModelTest {
             assertEquals(listOf(testStop), viewModel.uiState.value.stops)
             assertEquals(LoadStatus.FAILED, viewModel.uiState.value.status)
             assertNotNull(viewModel.uiState.value.error)
-            repository.refreshStops = {}
-            viewModel.onAction(RouteStopsAction.Refresh)
+            repository.stopLoadFailure = null
+            viewModel.onAction(RouteStopsAction.RetryLoad)
             runCurrent()
             assertNull(viewModel.uiState.value.error)
             assertEquals(LoadStatus.LOADED, viewModel.uiState.value.status)

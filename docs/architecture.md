@@ -19,14 +19,22 @@ review, or optional Gradle modules; shared packages must respect the same bounda
 
 ## Repositories and use cases
 
-- Domain owns repository interfaces; data owns implementations and hides DAOs,
-  HTTP clients, entities, and source coordination. Contracts describe capabilities,
-  not endpoint/table structure. Avoid duplicate or unnecessary interfaces.
+- Domain owns repository interfaces; data owns implementations. Repositories access
+  persistence through local data source interfaces, including Room and DataStore;
+  local data sources own storage APIs, keys, and storage-model mapping. Prefer DAO
+  `@Transaction` methods for operations within one DAO. For transactions spanning
+  multiple DAOs, use a dedicated data-layer transaction coordinator that owns
+  `TransitDatabase.withTransaction`; local data sources inject DAOs and the
+  coordinator rather than `TransitDatabase`.
+  Data hides HTTP clients, entities, and source coordination. Contracts describe
+  capabilities, not endpoint/table structure. Avoid duplicate or unnecessary interfaces.
 - Define each operation's inputs/identity, output/failures, suspend-versus-stream
   behavior, freshness/cache authority, concurrency, cancellation, retry/idempotency,
   and work triggered by subscription changes.
-- Use cases own business rules, meaningful reuse, and orchestration across domain
-  operations. Simple ViewModel operations may call repositories directly.
+- Use cases encapsulate business rules or meaningful orchestration across domain
+  operations; do not create use cases that only delegate repository calls. Simple
+  ViewModel operations call repositories directly. Each use case exposes one public
+  operation through `operator fun invoke`; helpers remain private.
 - Repositories own source coordination/caching; UI owns presentation decisions.
   Use cases must not retain screen state or coordinate navigation.
 - Domain enforces business invariants; UI controls validation presentation; data
@@ -40,8 +48,10 @@ differ. Keep localized text, formatting, visual tokens, and Compose state in UI.
 Place mappers beside their boundary; define missing/unknown values, identifiers,
 and units. Malformed data must not silently become successful empty content.
 
-Represent expected failures as typed domain outcomes, with vocabulary appropriate
-to the capability. Data translates transport/storage failures; use cases may
+Represent expected failures as sealed domain error interfaces returned through
+typed outcomes, using vocabulary appropriate to the capability. Reuse the existing
+outcome convention; do not represent expected domain failures as thrown exceptions.
+Data translates transport/storage failures into these outcomes; use cases may
 translate business outcomes; ViewModels provide presentation/recovery. Keep raw
 responses, SQL exceptions, and exception text out of those contracts.
 

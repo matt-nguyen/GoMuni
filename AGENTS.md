@@ -19,6 +19,11 @@ Read those documents alongside the affected implementation.
 For Compose changes, read [UI architecture](docs/ui-architecture.md) for responsibilities
 and [Compose conventions](docs/compose.md) for implementation mechanics.
 
+## Kotlin Style
+
+Use imports instead of fully qualified names in Kotlin declarations and expressions.
+Use import aliases to resolve name conflicts.
+
 ## Build Verification
 
 For Kotlin or Gradle Kotlin changes, run:

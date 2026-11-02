@@ -14,10 +14,33 @@ import com.nghianguyen.gomuni.ui.theme.GoMuniTheme
 @Preview(widthDp = 900, heightDp = 600)
 @Composable
 private fun RoutesPreview() {
+    RoutesPreviewContent(setOf("38"))
+}
+
+@Preview(widthDp = 400, heightDp = 800)
+@Composable
+private fun NoFavoritesPreview() {
+    RoutesPreviewContent(emptySet())
+}
+
+@Preview(widthDp = 400, heightDp = 800)
+@Composable
+private fun AllFavoritesPreview() {
+    RoutesPreviewContent(setOf("1", "38"))
+}
+
+@Composable
+private fun RoutesPreviewContent(favoriteIds: Set<String>) {
     GoMuniTheme {
         TransitLinesScreen(
             RoutesUiState(
-                lines = listOf(TransitLine("38", "Geary", "bus")),
+                lines =
+                    listOf(
+                        TransitLine("1", "California", "bus"),
+                        TransitLine("38", "Geary", "bus"),
+                    ),
+                favoriteIds = favoriteIds,
+                favoritesReady = true,
                 status = LoadStatus.LOADED,
             ),
             {},

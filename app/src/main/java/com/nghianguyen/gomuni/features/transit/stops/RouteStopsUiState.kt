@@ -11,7 +11,6 @@ data class RouteStopsUiState(
     val selectedStopId: String? = null,
     val arrivalsStopId: String? = null,
     val status: LoadStatus = LoadStatus.NOT_LOADED,
-    val isRefreshing: Boolean = false,
     val error: String? = null,
     val lines: List<TransitLine> = emptyList(),
 ) {

@@ -78,7 +78,6 @@ internal fun RouteStopsTopBar(uiState: RouteStopsUiState, onAction: (RouteStopsA
         canGoBack = true,
         routesState = RoutesUiState(),
         onBack = { onAction(RouteStopsAction.Back) },
-        onRefresh = {},
         onSort = {},
     )
 }
@@ -104,10 +103,10 @@ internal fun RouteStopsPanel(
         TransitLoadContent(
             uiState.stops.isNotEmpty(),
             uiState.status.isLoading,
-            uiState.isRefreshing,
+            false,
             uiState.error,
             stringResource(R.string.no_stops),
-            { onAction(RouteStopsAction.Refresh) },
+            { onAction(RouteStopsAction.RetryLoad) },
             Modifier.fillMaxSize(),
         ) {
             TransitStopList(

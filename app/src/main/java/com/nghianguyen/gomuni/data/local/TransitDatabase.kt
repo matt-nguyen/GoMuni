@@ -5,11 +5,12 @@ import androidx.room.RoomDatabase
 import com.nghianguyen.gomuni.data.local.dao.TransitLineDao
 import com.nghianguyen.gomuni.data.local.dao.TransitStopDao
 import com.nghianguyen.gomuni.data.local.entity.TransitLineEntity
+import com.nghianguyen.gomuni.data.local.entity.TransitLineStopEntity
 import com.nghianguyen.gomuni.data.local.entity.TransitStopEntity
 
 @Database(
-    entities = [TransitLineEntity::class, TransitStopEntity::class],
-    version = 2,
+    entities = [TransitLineEntity::class, TransitStopEntity::class, TransitLineStopEntity::class],
+    version = 1,
     exportSchema = false,
 )
 abstract class TransitDatabase : RoomDatabase() {

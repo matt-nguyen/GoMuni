@@ -91,7 +91,7 @@ internal fun RouteStopsRoute(
                     context = state,
                     trackingEnabled = trackingEnabled,
                     onTrackingRequest = onTrackingRequest,
-                    onRetryContext = { viewModel.onAction(RouteStopsAction.Refresh) },
+                    onRetryContext = { viewModel.onAction(RouteStopsAction.RetryLoad) },
                     onDismiss = { viewModel.onAction(RouteStopsAction.DismissArrivals(stopId)) },
                     onMapArrivalsChanged = { projection ->
                         if (

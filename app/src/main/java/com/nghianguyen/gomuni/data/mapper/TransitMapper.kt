@@ -51,7 +51,7 @@ fun ScheduledStopPointDto.toDomain(lineId: String): TransitStop {
     )
 }
 
-fun TransitStopEntity.toDomain(): TransitStop {
+fun TransitStopEntity.toDomain(lineId: String): TransitStop {
     return TransitStop(
         id = id,
         name = name,
@@ -69,7 +69,6 @@ fun TransitStop.toEntity(): TransitStopEntity {
         latitude = latitude,
         longitude = longitude,
         stopType = stopType,
-        lineId = lineId,
     )
 }
 

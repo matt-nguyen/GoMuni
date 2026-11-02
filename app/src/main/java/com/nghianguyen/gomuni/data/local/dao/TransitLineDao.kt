@@ -13,6 +13,4 @@ interface TransitLineDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(lines: List<TransitLineEntity>): List<Long>
-
-    @Query("DELETE FROM transit_lines") suspend fun clearAll(): Int
 }
