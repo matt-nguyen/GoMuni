@@ -24,7 +24,6 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +41,7 @@ import com.nghianguyen.gomuni.ui.components.EditorialDivider
 import com.nghianguyen.gomuni.ui.theme.EditorialTheme
 
 /**
- * Renders sorted lines with filtered favorites first; row and star actions remain separate.
+ * Renders filtered favorites above the complete sorted list; row and star actions remain separate.
  *
  * @param lines Available lines in the selected sort order.
  * @param selectedLineId Optional selected line identity.
@@ -77,7 +76,11 @@ fun TransitLineList(
         remember(lines, activeFilter, favoriteIds) {
             groupTransitLines(lines, activeFilter, favoriteIds)
         }
-    val displayedLines = groups.favorites + groups.others
+    val displayedLines =
+        remember(groups) {
+            groups.favorites.map { TransitLineListEntry(it, isFavoriteSection = true) } +
+                groups.all.map { TransitLineListEntry(it, isFavoriteSection = false) }
+        }
 
     LazyColumn(
         state = listState,
@@ -93,13 +96,20 @@ fun TransitLineList(
             EditorialDivider()
         }
 
-        items(displayedLines, key = { it.id }) { line ->
+        items(
+            displayedLines,
+            key = { entry ->
+                val section = if (entry.isFavoriteSection) "favorite" else "route"
+                "$section:${entry.line.id}"
+            },
+        ) { entry ->
+            val line = entry.line
             val isSelected = line.id == selectedLineId
 
             if (
                 groups.favorites.isNotEmpty() &&
-                    groups.others.isNotEmpty() &&
-                    line.id == groups.others.first().id
+                    !entry.isFavoriteSection &&
+                    line.id == groups.all.first().id
             ) {
                 EditorialDivider(
                     Modifier.padding(vertical = EditorialTheme.spacing.spaceXs)
@@ -300,16 +310,19 @@ internal fun matchesRouteFilter(line: TransitLine, filter: String): Boolean {
 
 internal data class TransitLineGroups(
     val favorites: List<TransitLine>,
-    val others: List<TransitLine>,
+    val all: List<TransitLine>,
 )
 
-/** Preserves the caller's sort order within each group and renders each identity once. */
+private data class TransitLineListEntry(val line: TransitLine, val isFavoriteSection: Boolean)
+
+/**
+ * Preserves sort order and distinct identities within each section, retaining favorites in both.
+ */
 internal fun groupTransitLines(
     lines: List<TransitLine>,
     filter: String,
     favoriteIds: Set<String>,
 ): TransitLineGroups {
     val visible = lines.distinctBy { it.id }.filter { matchesRouteFilter(it, filter) }
-    val (favorites, others) = visible.partition { it.id in favoriteIds }
-    return TransitLineGroups(favorites, others)
+    return TransitLineGroups(favorites = visible.filter { it.id in favoriteIds }, all = visible)
 }

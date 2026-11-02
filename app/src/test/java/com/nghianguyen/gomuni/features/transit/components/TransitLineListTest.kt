@@ -34,14 +34,25 @@ class TransitLineListTest {
     }
 
     @Test
-    fun `groups preserve sorting filter both sections and remove duplicate identities`() {
+    fun `groups retain favorites in the full sorted list and filter both sections`() {
         val lines = listOf("1", "14R", "38", "38R", "38").map { TransitLine(it, it, "bus") }
         val groups = groupTransitLines(lines, "All", setOf("38", "14R", "missing"))
         assertEquals(listOf("14R", "38"), groups.favorites.map { it.id })
-        assertEquals(listOf("1", "38R"), groups.others.map { it.id })
+        assertEquals(listOf("1", "14R", "38", "38R"), groups.all.map { it.id })
         val rapid = groupTransitLines(lines, "Rapid", setOf("38", "14R"))
         assertEquals(listOf("14R"), rapid.favorites.map { it.id })
-        assertEquals(listOf("38R"), rapid.others.map { it.id })
+        assertEquals(listOf("14R", "38R"), rapid.all.map { it.id })
+    }
+
+    @Test
+    fun `empty favorites leave the full list unchanged and all favorites retain both sections`() {
+        val lines = listOf("38", "1").map { TransitLine(it, it, "bus") }
+        val noFavorites = groupTransitLines(lines, "All", emptySet())
+        assertTrue(noFavorites.favorites.isEmpty())
+        assertEquals(lines, noFavorites.all)
+        val allFavorites = groupTransitLines(lines, "All", setOf("38", "1"))
+        assertEquals(lines, allFavorites.favorites)
+        assertEquals(lines, allFavorites.all)
     }
 
     private fun matches(id: String, filter: String) =
