@@ -16,9 +16,12 @@ contracts/exceptions belong in separate documentation.
 | Shared component | Supplied-value rendering and named callbacks |
 
 Use `FeatureRoute`, `FeatureScreen`, `FeatureUiState`, `FeatureAction`, and
-`FeatureViewModel`. Keep one clear role per composable. Extract coherent
-responsibilities, not arbitrary blocks or line-count targets; avoid unnecessary
-ViewModels/state holders. Preserve scope, effect keys, collection, saveable state,
+`FeatureViewModel`. Keep one clear role per composable. Keep composables at a
+consistent level of abstraction. Extract coherent UI sections with their own
+state-dependent rendering or interactions into purpose-named composables, even
+when used once; keep simple layout and isolated primitives inline. Extract by
+responsibility, not line count; avoid unnecessary ViewModels/state holders.
+Preserve scope, effect keys, collection, saveable state,
 scene metadata, and inset ownership during extraction.
 
 ## Routes and screen contracts

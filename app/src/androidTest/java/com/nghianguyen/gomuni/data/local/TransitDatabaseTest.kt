@@ -1,10 +1,16 @@
 package com.nghianguyen.gomuni.data.local
 
+import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nghianguyen.gomuni.data.datasource.TransitLocalDataSourceImpl
+import com.nghianguyen.gomuni.data.datasource.TransitRemoteDataSource
+import com.nghianguyen.gomuni.data.repository.TransitRepositoryImpl
+import com.nghianguyen.gomuni.domain.model.BusArrival
+import com.nghianguyen.gomuni.domain.model.Outcome
 import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.domain.model.TransitStop
+import com.nghianguyen.gomuni.domain.util.ErrorLogger
 import java.util.UUID
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -23,7 +29,8 @@ class TransitDatabaseTest {
         try {
             Room.databaseBuilder(context, TransitDatabase::class.java, name).build().useDatabase {
                 database ->
-                val local = TransitLocalDataSourceImpl(database)
+                val local =
+                    TransitLocalDataSourceImpl(database.transitLineDao(), database.transitStopDao())
                 local.storeInitialLines("SF", listOf(TransitLine("38", "Geary", "bus")))
                 local.storeInitialStops("SF", "38", emptyList())
                 try {
@@ -33,7 +40,7 @@ class TransitDatabaseTest {
                         listOf(TransitStop("bad", "Bad", 0.0, 0.0, null, "missing")),
                     )
                     fail("Expected foreign key failure")
-                } catch (_: android.database.sqlite.SQLiteConstraintException) {
+                } catch (_: SQLiteConstraintException) {
                     assertTrue(local.getStopsForLine("missing").first().isEmpty())
                     database
                         .query("SELECT COUNT(*) FROM transit_stops WHERE id = 'bad'", emptyArray())
@@ -45,7 +52,8 @@ class TransitDatabaseTest {
             }
             Room.databaseBuilder(context, TransitDatabase::class.java, name).build().useDatabase {
                 database ->
-                val local = TransitLocalDataSourceImpl(database)
+                val local =
+                    TransitLocalDataSourceImpl(database.transitLineDao(), database.transitStopDao())
                 assertEquals("38", local.getTransitLines().first().single().id)
                 assertTrue(local.getStopsForLine("38").first().isEmpty())
             }
@@ -61,7 +69,7 @@ class TransitDatabaseTest {
             val lineCalls = mutableListOf<String>()
             val stopCalls = mutableListOf<String>()
             val remote =
-                object : com.nghianguyen.gomuni.data.datasource.TransitRemoteDataSource {
+                object : TransitRemoteDataSource {
                     override suspend fun getTransitLines(operatorId: String): List<TransitLine> {
                         lineCalls.add(operatorId)
                         return listOf(
@@ -82,10 +90,10 @@ class TransitDatabaseTest {
 
                     override suspend fun getBusArrivals(
                         stopId: String,
-                    ): List<com.nghianguyen.gomuni.domain.model.BusArrival> = emptyList()
+                    ): List<BusArrival> = emptyList()
                 }
             val logger =
-                object : com.nghianguyen.gomuni.domain.util.ErrorLogger {
+                object : ErrorLogger {
                     override fun log(
                         message: String,
                         error: Throwable?,
@@ -98,17 +106,39 @@ class TransitDatabaseTest {
                 Room.databaseBuilder(context, TransitDatabase::class.java, name)
                     .build()
                     .useDatabase { database ->
-                        val local = TransitLocalDataSourceImpl(database)
+                        val local =
+                            TransitLocalDataSourceImpl(
+                                database.transitLineDao(),
+                                database.transitStopDao(),
+                            )
                         val repository =
-                            com.nghianguyen.gomuni.data.repository.TransitRepositoryImpl(
+                            TransitRepositoryImpl(
                                 remote,
                                 local,
                                 logger,
                             )
-                        repository.ensureTransitStopsLoaded("SF", "38")
-                        repository.ensureTransitStopsLoaded("SF", "38R")
-                        assertEquals("123", repository.getTransitStops("38").first().single().id)
-                        assertEquals("123", repository.getTransitStops("38R").first().single().id)
+                        assertEquals(
+                            Outcome.Success(Unit),
+                            repository.ensureTransitStopsLoaded("SF", "38"),
+                        )
+                        assertEquals(
+                            Outcome.Success(Unit),
+                            repository.ensureTransitStopsLoaded("SF", "38R"),
+                        )
+                        assertEquals(
+                            "123",
+                            (repository.getTransitStops("38").first() as Outcome.Success)
+                                .value
+                                .single()
+                                .id,
+                        )
+                        assertEquals(
+                            "123",
+                            (repository.getTransitStops("38R").first() as Outcome.Success)
+                                .value
+                                .single()
+                                .id,
+                        )
                         local.storeInitialStops(
                             "SF",
                             "38R",
@@ -125,19 +155,38 @@ class TransitDatabaseTest {
                 Room.databaseBuilder(context, TransitDatabase::class.java, name)
                     .build()
                     .useDatabase { database ->
-                        val local = TransitLocalDataSourceImpl(database)
+                        val local =
+                            TransitLocalDataSourceImpl(
+                                database.transitLineDao(),
+                                database.transitStopDao(),
+                            )
                         val repository =
-                            com.nghianguyen.gomuni.data.repository.TransitRepositoryImpl(
+                            TransitRepositoryImpl(
                                 remote,
                                 local,
                                 logger,
                             )
-                        repository.ensureTransitStopsLoaded("SF", "38")
-                        repository.ensureTransitStopsLoaded("SF", "38R")
-                        assertEquals("38", repository.getTransitStops("38").first().single().lineId)
+                        assertEquals(
+                            Outcome.Success(Unit),
+                            repository.ensureTransitStopsLoaded("SF", "38"),
+                        )
+                        assertEquals(
+                            Outcome.Success(Unit),
+                            repository.ensureTransitStopsLoaded("SF", "38R"),
+                        )
+                        assertEquals(
+                            "38",
+                            (repository.getTransitStops("38").first() as Outcome.Success)
+                                .value
+                                .single()
+                                .lineId,
+                        )
                         assertEquals(
                             "38R",
-                            repository.getTransitStops("38R").first().single().lineId,
+                            (repository.getTransitStops("38R").first() as Outcome.Success)
+                                .value
+                                .single()
+                                .lineId,
                         )
                     }
                 assertEquals(listOf("SF"), lineCalls)

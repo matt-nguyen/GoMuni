@@ -5,11 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nghianguyen.gomuni.app.navigation.NavigationEvents
 import com.nghianguyen.gomuni.app.navigation.TransitNavigation
+import com.nghianguyen.gomuni.domain.model.Outcome
+import com.nghianguyen.gomuni.domain.model.TransitError
 import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import com.nghianguyen.gomuni.domain.util.ErrorLogger
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
 import com.nghianguyen.gomuni.features.transit.model.RouteKey
+import com.nghianguyen.gomuni.features.transit.model.UNEXPECTED_TRANSIT_FAILURE_MESSAGE
 import com.nghianguyen.gomuni.features.transit.model.transitFailureMessage
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -64,7 +67,7 @@ constructor(
             viewModelScope.launch {
                 try {
                     repository.getTransitLines().collect { lines ->
-                        state.update { it.copy(lines = lines) }
+                        if (lines is Outcome.Success) state.update { it.copy(lines = lines.value) }
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -75,7 +78,12 @@ constructor(
             }
             viewModelScope.launch {
                 try {
-                    repository.getTransitStops(route.lineId).collect { updateStops(it, false) }
+                    repository.getTransitStops(route.lineId).collect {
+                        when (it) {
+                            is Outcome.Success -> updateStops(it.value, false)
+                            is Outcome.Failure -> fail(it.error)
+                        }
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
@@ -129,9 +137,16 @@ constructor(
         }
         loadJob = viewModelScope.launch {
             try {
-                repository.ensureTransitStopsLoaded(route.operatorId, route.lineId)
-                val stops = repository.getTransitStops(route.lineId).first()
-                updateStops(stops, true)
+                when (
+                    val loaded = repository.ensureTransitStopsLoaded(route.operatorId, route.lineId)
+                ) {
+                    is Outcome.Failure -> fail(loaded.error)
+                    is Outcome.Success ->
+                        when (val stops = repository.getTransitStops(route.lineId).first()) {
+                            is Outcome.Failure -> fail(stops.error)
+                            is Outcome.Success -> updateStops(stops.value, true)
+                        }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -158,11 +173,16 @@ constructor(
     }
 
     private fun fail(error: Exception) {
+        errorLogger.log("Transit stops unavailable", error)
         state.update {
             it.copy(
                 status = LoadStatus.FAILED,
-                error = transitFailureMessage(error),
+                error = UNEXPECTED_TRANSIT_FAILURE_MESSAGE,
             )
         }
+    }
+
+    private fun fail(error: TransitError) {
+        state.update { it.copy(status = LoadStatus.FAILED, error = transitFailureMessage(error)) }
     }
 }

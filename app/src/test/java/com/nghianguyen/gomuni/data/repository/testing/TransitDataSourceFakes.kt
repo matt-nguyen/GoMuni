@@ -6,17 +6,28 @@ import com.nghianguyen.gomuni.domain.model.BusArrival
 import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.domain.model.TransitStop
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 
 internal class FakeLocalDataSource : TransitLocalDataSource {
     val lines = MutableStateFlow(listOf(TransitLine("19", "Polk", "bus")))
+    var readFailure: Exception? = null
+    var writeFailure: Exception? = null
     var cleared = false
     val stops = MutableStateFlow(emptyList<TransitStop>())
 
-    override fun getTransitLines() = lines
+    override fun getTransitLines() = flow {
+        readFailure?.let { throw it }
+        emitAll(lines)
+    }
 
-    override fun getStopsForLine(lineId: String) = stops
+    override fun getStopsForLine(lineId: String) = flow {
+        readFailure?.let { throw it }
+        emitAll(stops)
+    }
 
     override suspend fun storeInitialLines(operatorId: String, lines: List<TransitLine>) {
+        writeFailure?.let { throw it }
         this.lines.value = lines
     }
 
@@ -25,6 +36,7 @@ internal class FakeLocalDataSource : TransitLocalDataSource {
         lineId: String,
         stops: List<TransitStop>,
     ) {
+        writeFailure?.let { throw it }
         this.stops.value = stops
     }
 }

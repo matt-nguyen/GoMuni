@@ -1,10 +1,8 @@
 package com.nghianguyen.gomuni.data.repository
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringSetPreferencesKey
-import com.nghianguyen.gomuni.domain.model.FavoritesStorageException
+import com.nghianguyen.gomuni.data.datasource.TransitFavoritesLocalDataSource
+import com.nghianguyen.gomuni.domain.model.FavoritesError
+import com.nghianguyen.gomuni.domain.model.Outcome
 import com.nghianguyen.gomuni.domain.repository.TransitFavoritesRepository
 import com.nghianguyen.gomuni.domain.util.ErrorLogger
 import java.io.IOException
@@ -17,30 +15,30 @@ import kotlinx.coroutines.flow.map
 class TransitFavoritesRepositoryImpl
 @Inject
 constructor(
-    private val dataStore: DataStore<Preferences>,
+    private val localDataSource: TransitFavoritesLocalDataSource,
     private val errorLogger: ErrorLogger,
 ) : TransitFavoritesRepository {
     override fun observeFavoriteIds() =
-        dataStore.data
-            .map { it[favoriteIdsKey].orEmpty().toSet() }
+        localDataSource
+            .observeFavoriteIds()
+            .map<Set<String>, Outcome<Set<String>, FavoritesError>> { Outcome.Success(it.toSet()) }
             .catch { error ->
                 if (error !is IOException) throw error
                 errorLogger.log("Favorites unavailable", error)
-                throw FavoritesStorageException()
+                emit(Outcome.Failure(FavoritesError.Storage))
             }
 
-    override suspend fun setFavorite(lineId: String, favorite: Boolean) {
+    override suspend fun setFavorite(
+        lineId: String,
+        favorite: Boolean,
+    ): Outcome<Unit, FavoritesError> {
         require(lineId.isNotBlank())
-        try {
-            dataStore.edit { preferences ->
-                val ids = preferences[favoriteIdsKey].orEmpty()
-                preferences[favoriteIdsKey] = if (favorite) ids + lineId else ids - lineId
-            }
+        return try {
+            localDataSource.setFavorite(lineId, favorite)
+            Outcome.Success(Unit)
         } catch (error: IOException) {
             errorLogger.log("Favorite could not be saved", error)
-            throw FavoritesStorageException()
+            Outcome.Failure(FavoritesError.Storage)
         }
     }
 }
-
-private val favoriteIdsKey = stringSetPreferencesKey("favorite_line_ids_sf")

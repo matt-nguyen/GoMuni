@@ -51,7 +51,7 @@ class StopArrivalsViewModelTest {
             viewModel.updateContext(testStop, true)
             runCurrent()
             assertEquals(listOf(testArrival), viewModel.uiState.value.predictions)
-            repository.arrivals = { throw TransitError.Network }
+            repository.arrivalsFailure = TransitError.Network
             viewModel.onAction(StopArrivalsAction.Refresh)
             runCurrent()
             assertEquals(listOf(testArrival), viewModel.uiState.value.predictions)

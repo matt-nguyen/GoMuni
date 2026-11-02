@@ -1,6 +1,7 @@
 package com.nghianguyen.gomuni.features.transit.components
 
 import com.nghianguyen.gomuni.domain.model.TransitLine
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,11 +37,11 @@ class TransitLineListTest {
     fun `groups preserve sorting filter both sections and remove duplicate identities`() {
         val lines = listOf("1", "14R", "38", "38R", "38").map { TransitLine(it, it, "bus") }
         val groups = groupTransitLines(lines, "All", setOf("38", "14R", "missing"))
-        org.junit.Assert.assertEquals(listOf("14R", "38"), groups.favorites.map { it.id })
-        org.junit.Assert.assertEquals(listOf("1", "38R"), groups.others.map { it.id })
+        assertEquals(listOf("14R", "38"), groups.favorites.map { it.id })
+        assertEquals(listOf("1", "38R"), groups.others.map { it.id })
         val rapid = groupTransitLines(lines, "Rapid", setOf("38", "14R"))
-        org.junit.Assert.assertEquals(listOf("14R"), rapid.favorites.map { it.id })
-        org.junit.Assert.assertEquals(listOf("38R"), rapid.others.map { it.id })
+        assertEquals(listOf("14R"), rapid.favorites.map { it.id })
+        assertEquals(listOf("38R"), rapid.others.map { it.id })
     }
 
     private fun matches(id: String, filter: String) =

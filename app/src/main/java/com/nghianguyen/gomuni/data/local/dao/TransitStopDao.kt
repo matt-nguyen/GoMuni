@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import com.nghianguyen.gomuni.data.local.entity.TransitLineStopEntity
 import com.nghianguyen.gomuni.data.local.entity.TransitStopEntity
@@ -21,4 +22,13 @@ interface TransitStopDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAssociations(associations: List<TransitLineStopEntity>)
+
+    @Transaction
+    suspend fun insertStopsWithAssociations(
+        stops: List<TransitStopEntity>,
+        associations: List<TransitLineStopEntity>,
+    ) {
+        insertAll(stops)
+        insertAssociations(associations)
+    }
 }

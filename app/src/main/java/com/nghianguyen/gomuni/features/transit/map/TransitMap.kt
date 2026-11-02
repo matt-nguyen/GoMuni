@@ -7,18 +7,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import com.google.gson.JsonPrimitive
 import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.ImageHolder
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
-import com.mapbox.maps.extension.compose.annotation.generated.PointAnnotation
+import com.mapbox.maps.extension.compose.annotation.generated.PointAnnotationGroup
 import com.mapbox.maps.extension.compose.annotation.rememberIconImage
 import com.mapbox.maps.extension.compose.style.BooleanValue
 import com.mapbox.maps.extension.compose.style.standard.LightPresetValue
@@ -26,6 +28,7 @@ import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.standard.rememberStandardStyleState
 import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
+import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.nghianguyen.gomuni.R
 import com.nghianguyen.gomuni.domain.model.TransitStop
@@ -89,20 +92,26 @@ internal fun TransitMapRoute(
     selectedStopId: String?,
     focusArrivals: Boolean,
     locationPermissionGranted: Boolean,
-    routeColor: Color,
     viewport: com.mapbox.maps.extension.compose.animation.viewport.MapViewportState,
     onFollowLocation: () -> Unit,
     onStopSelected: (TransitStop) -> Unit,
     modifier: Modifier,
 ) {
-    val colors = EditorialTheme.colors
     val stopIcon =
         rememberIconImage(
             key = "stop-marker",
-            painter = painterResource(R.drawable.baseline_adjust_24),
+            painter = painterResource(R.drawable.circle_stroked),
         )
-    val busIcon =
-        rememberIconImage(key = "bus-marker", painter = painterResource(R.drawable.bus_icon))
+    val selectedStopIcon = rememberIconImage(R.drawable.circle)
+    val busIcon = rememberIconImage(key = "bus-marker", painter = painterResource(R.drawable.bus))
+    val stopsById = remember(data.stops) { data.stops.associateBy { it.id } }
+    val stopAnnotations = rememberStopAnnotations(data.stops, selectedStopId, focusArrivals)
+    val vehicleAnnotations =
+        remember(data.vehicles) {
+            data.vehicles.map { bus ->
+                PointAnnotationOptions().withPoint(Point.fromLngLat(bus.longitude, bus.latitude))
+            }
+        }
     Box(modifier) {
         MapboxMap(
             modifier = Modifier.fillMaxSize(),
@@ -112,44 +121,68 @@ internal fun TransitMapRoute(
             },
         ) {
             ConfigureUserLocation(locationPermissionGranted)
-            data.stops.forEach { stop ->
-                key(stop.id) {
-                    val selected = stop.id == selectedStopId
-                    PointAnnotation(point = Point.fromLngLat(stop.longitude, stop.latitude)) {
-                        interactionsState.onClicked {
-                            onStopSelected(stop)
-                            true
+            stopAnnotations.forEachIndexed { index, annotations ->
+                key(index) {
+                    PointAnnotationGroup(annotations = annotations) {
+                        iconImage = if (index == 0) stopIcon else selectedStopIcon
+                        iconColor = Color.White
+                        interactionsState.onClicked { annotation ->
+                            val stop = annotation.getData()?.asString?.let(stopsById::get)
+                            if (stop != null) {
+                                onStopSelected(stop)
+                                true
+                            } else {
+                                false
+                            }
                         }
-                        iconImage = stopIcon
-                        iconColor = if (selected) colors.signalChartreuse else routeColor
-                        iconOpacity =
-                            if (focusArrivals && !selected) UNFOCUSED_STOP_OPACITY else 1.0
                     }
                 }
             }
-            data.vehicles.forEach { bus ->
-                key("vehicle:${vehicleKey(bus)}") {
-                    PointAnnotation(point = Point.fromLngLat(bus.longitude, bus.latitude)) {
-                        iconImage = busIcon
-                        iconColor = colors.signalChartreuse
-                    }
-                }
+            PointAnnotationGroup(annotations = vehicleAnnotations) {
+                iconImage = busIcon
+                iconColor = Color.White
             }
         }
         if (locationPermissionGranted)
-            EditorialFAB(
+            FollowLocationButton(
                 onClick = onFollowLocation,
                 modifier =
                     Modifier.align(Alignment.BottomEnd).padding(EditorialTheme.spacing.spaceMd),
-            ) {
-                Icon(
-                    painterResource(R.drawable.current_location_icon),
-                    stringResource(R.string.my_location),
-                    tint = colors.editorialBlack,
-                )
-            }
+            )
     }
 }
+
+@Composable
+private fun FollowLocationButton(onClick: () -> Unit, modifier: Modifier) {
+    EditorialFAB(onClick = onClick, modifier = modifier) {
+        Icon(
+            painterResource(R.drawable.current_location_icon),
+            stringResource(R.string.my_location),
+            tint = EditorialTheme.colors.editorialBlack,
+        )
+    }
+}
+
+@Composable
+private fun rememberStopAnnotations(
+    stops: List<TransitStop>,
+    selectedStopId: String?,
+    focusArrivals: Boolean,
+): List<List<PointAnnotationOptions>> =
+    remember(stops, selectedStopId, focusArrivals) {
+        val (selectedStops, unselectedStops) = stops.partition { it.id == selectedStopId }
+        listOf(unselectedStops, selectedStops).map { group ->
+            group.map { stop ->
+                val selected = stop.id == selectedStopId
+                PointAnnotationOptions()
+                    .withPoint(Point.fromLngLat(stop.longitude, stop.latitude))
+                    .withData(JsonPrimitive(stop.id))
+                    .withIconOpacity(
+                        if (focusArrivals && !selected) UNFOCUSED_STOP_OPACITY else 1.0,
+                    )
+            }
+        }
+    }
 
 private const val SAN_FRANCISCO_LONGITUDE = -122.4194
 private const val SAN_FRANCISCO_LATITUDE = 37.7749

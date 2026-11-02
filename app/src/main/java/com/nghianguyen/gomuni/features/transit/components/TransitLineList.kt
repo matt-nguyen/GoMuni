@@ -1,5 +1,6 @@
 package com.nghianguyen.gomuni.features.transit.components
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
@@ -63,8 +65,8 @@ fun TransitLineList(
     modifier: Modifier = Modifier,
     activeFilter: String = "All",
     onFilterSelected: (String) -> Unit = {},
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    filterScrollState: androidx.compose.foundation.ScrollState,
+    listState: LazyListState,
+    filterScrollState: ScrollState,
     favoriteIds: Set<String> = emptySet(),
     pendingFavoriteIds: Set<String> = emptySet(),
     favoritesReady: Boolean = false,
@@ -121,7 +123,7 @@ fun TransitLineList(
 private fun RouteFilters(
     activeFilter: String,
     onFilterSelected: (String) -> Unit,
-    filterScrollState: androidx.compose.foundation.ScrollState,
+    filterScrollState: ScrollState,
 ) {
     val editorialColors = EditorialTheme.colors
     val filters = listOf("All", "Local", "Rapid", "Express", "Owl")

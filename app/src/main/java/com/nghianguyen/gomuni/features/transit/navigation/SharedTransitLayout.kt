@@ -155,7 +155,6 @@ internal fun SharedTransitLayout(
                     selectedStopId = presentation.selectedStopId,
                     focusArrivals = presentation.focusArrivals,
                     locationPermissionGranted = locationGranted,
-                    routeColor = presentation.routeColor,
                     viewport = viewport,
                     onFollowLocation = { viewport.transitionToFollowPuckState() },
                     onStopSelected = { currentBinding?.presentation?.onStopSelected?.invoke(it) },

@@ -2,10 +2,13 @@ package com.nghianguyen.gomuni.features.transit.arrivals
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nghianguyen.gomuni.domain.model.Outcome
+import com.nghianguyen.gomuni.domain.model.TransitLine
 import com.nghianguyen.gomuni.domain.model.TransitStop
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import com.nghianguyen.gomuni.features.tracking.TrackingRequest
 import com.nghianguyen.gomuni.features.transit.model.LoadStatus
+import com.nghianguyen.gomuni.features.transit.model.UNEXPECTED_TRANSIT_FAILURE_MESSAGE
 import com.nghianguyen.gomuni.features.transit.model.transitFailureMessage
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -48,7 +51,7 @@ constructor(
     fun updateContext(
         selectedStop: TransitStop?,
         ready: Boolean,
-        lines: List<com.nghianguyen.gomuni.domain.model.TransitLine> = emptyList(),
+        lines: List<TransitLine> = emptyList(),
         contextError: String? = null,
     ) {
         stop = selectedStop?.takeIf { it.id == stopId }
@@ -119,7 +122,19 @@ constructor(
         }
         arrivalsJob = viewModelScope.launch {
             try {
-                val predictions = repository.getBusArrivals(stopId)
+                val result = repository.getBusArrivals(stopId)
+                if (result is Outcome.Failure) {
+                    if (version == generation)
+                        state.update {
+                            it.copy(
+                                status = LoadStatus.FAILED,
+                                isRefreshing = false,
+                                error = transitFailureMessage(result.error),
+                            )
+                        }
+                    return@launch
+                }
+                val predictions = (result as Outcome.Success).value
                 if (version == generation && stop != null) {
                     state.update {
                         it.copy(
@@ -139,7 +154,7 @@ constructor(
                         it.copy(
                             status = LoadStatus.FAILED,
                             isRefreshing = false,
-                            error = transitFailureMessage(error),
+                            error = UNEXPECTED_TRANSIT_FAILURE_MESSAGE,
                         )
                     }
             }

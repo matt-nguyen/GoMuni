@@ -1,9 +1,11 @@
 package com.nghianguyen.gomuni.domain.model
 
-sealed class TransitError : Exception() {
-    data object Network : TransitError()
+sealed interface TransitError {
+    data object Network : TransitError
 
-    data object NotFound : TransitError()
+    data object NotFound : TransitError
 
-    data object Unexpected : TransitError()
+    data object Storage : TransitError
+
+    data object ServiceUnavailable : TransitError
 }

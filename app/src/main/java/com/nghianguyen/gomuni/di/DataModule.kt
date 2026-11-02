@@ -1,11 +1,15 @@
 package com.nghianguyen.gomuni.di
 
+import com.nghianguyen.gomuni.data.datasource.TransitFavoritesLocalDataSource
+import com.nghianguyen.gomuni.data.datasource.TransitFavoritesLocalDataSourceImpl
 import com.nghianguyen.gomuni.data.datasource.TransitLocalDataSource
 import com.nghianguyen.gomuni.data.datasource.TransitLocalDataSourceImpl
 import com.nghianguyen.gomuni.data.datasource.TransitRemoteDataSource
 import com.nghianguyen.gomuni.data.datasource.TransitRemoteDataSourceImpl
+import com.nghianguyen.gomuni.data.repository.TransitFavoritesRepositoryImpl
 import com.nghianguyen.gomuni.data.repository.TransitRepositoryImpl
 import com.nghianguyen.gomuni.data.util.AnalyticsErrorLogger
+import com.nghianguyen.gomuni.domain.repository.TransitFavoritesRepository
 import com.nghianguyen.gomuni.domain.repository.TransitRepository
 import com.nghianguyen.gomuni.domain.util.ErrorLogger
 import dagger.Binds
@@ -20,8 +24,13 @@ interface DataModule {
     @Binds
     @Singleton
     fun bindTransitFavoritesRepository(
-        implementation: com.nghianguyen.gomuni.data.repository.TransitFavoritesRepositoryImpl,
-    ): com.nghianguyen.gomuni.domain.repository.TransitFavoritesRepository
+        implementation: TransitFavoritesRepositoryImpl,
+    ): TransitFavoritesRepository
+
+    @Binds
+    fun bindTransitFavoritesLocalDataSource(
+        implementation: TransitFavoritesLocalDataSourceImpl,
+    ): TransitFavoritesLocalDataSource
 
     @Binds
     @Singleton

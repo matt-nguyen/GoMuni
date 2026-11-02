@@ -71,7 +71,7 @@ class RouteStopsViewModelTest {
     fun `initial stop load failure retains available content and can retry`() =
         runTest(mainDispatcherRule.dispatcher) {
             repository.stops.value = listOf(testStop)
-            repository.loadStops = { throw TransitError.Network }
+            repository.stopLoadFailure = TransitError.Network
             val viewModel =
                 retain(
                     RouteStopsViewModel(
@@ -85,7 +85,7 @@ class RouteStopsViewModelTest {
             assertEquals(listOf(testStop), viewModel.uiState.value.stops)
             assertEquals(LoadStatus.FAILED, viewModel.uiState.value.status)
             assertNotNull(viewModel.uiState.value.error)
-            repository.loadStops = {}
+            repository.stopLoadFailure = null
             viewModel.onAction(RouteStopsAction.RetryLoad)
             runCurrent()
             assertNull(viewModel.uiState.value.error)

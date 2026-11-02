@@ -4,12 +4,21 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelStore
 import com.nghianguyen.gomuni.app.navigation.TransitNavigation
+import com.nghianguyen.gomuni.domain.model.FavoritesError
+import com.nghianguyen.gomuni.domain.model.Outcome
+import com.nghianguyen.gomuni.domain.model.TransitError
 import com.nghianguyen.gomuni.domain.model.TransitLine
+import com.nghianguyen.gomuni.domain.repository.TransitFavoritesRepository
+import com.nghianguyen.gomuni.features.transit.model.LoadStatus
+import com.nghianguyen.gomuni.features.transit.testing.FakeTransitFavoritesRepository
 import com.nghianguyen.gomuni.features.transit.testing.FakeTransitRepository
 import com.nghianguyen.gomuni.testing.MainDispatcherRule
+import com.nghianguyen.gomuni.testing.RecordingErrorLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -28,8 +37,7 @@ class TransitLinesViewModelTest {
     @get:Rule val mainDispatcherRule = MainDispatcherRule()
     private val store = ViewModelStore()
     private val repository = FakeTransitRepository()
-    private val favorites =
-        com.nghianguyen.gomuni.features.transit.testing.FakeTransitFavoritesRepository()
+    private val favorites = FakeTransitFavoritesRepository()
 
     @After
     fun clearViewModels() {
@@ -55,14 +63,14 @@ class TransitLinesViewModelTest {
                         repository,
                         handle,
                         favorites,
-                        com.nghianguyen.gomuni.testing.RecordingErrorLogger(),
+                        RecordingErrorLogger(),
                     ),
                 )
             runCurrent()
             assertEquals(listOf("1", "38"), viewModel.uiState.value.lines.map { it.id })
             assertEquals("Rapid", viewModel.uiState.value.filter)
             assertEquals(
-                com.nghianguyen.gomuni.features.transit.model.LoadStatus.LOADING,
+                LoadStatus.LOADING,
                 viewModel.uiState.value.status,
             )
             viewModel.onAction(TransitLinesAction.RetryLoad)
@@ -74,7 +82,7 @@ class TransitLinesViewModelTest {
             assertEquals("ID", handle.get<String>("sort"))
             assertEquals("All", handle.get<String>("filter"))
             assertEquals(
-                com.nghianguyen.gomuni.features.transit.model.LoadStatus.LOADED,
+                LoadStatus.LOADED,
                 viewModel.uiState.value.status,
             )
         }
@@ -89,7 +97,7 @@ class TransitLinesViewModelTest {
                         repository,
                         SavedStateHandle(),
                         favorites,
-                        com.nghianguyen.gomuni.testing.RecordingErrorLogger(),
+                        RecordingErrorLogger(),
                     ),
                 )
             runCurrent()
@@ -116,7 +124,7 @@ class TransitLinesViewModelTest {
                         repository,
                         SavedStateHandle(),
                         favorites,
-                        com.nghianguyen.gomuni.testing.RecordingErrorLogger(),
+                        RecordingErrorLogger(),
                     ),
                 )
             runCurrent()
@@ -140,7 +148,7 @@ class TransitLinesViewModelTest {
         runTest(mainDispatcherRule.dispatcher) {
             repository.lines.value = listOf(TransitLine("38", "Geary", "bus"))
             favorites.beforeWrite = {
-                throw com.nghianguyen.gomuni.domain.model.FavoritesStorageException()
+                favorites.writeFailure = FavoritesError.Storage
             }
             val viewModel =
                 retain(
@@ -148,7 +156,7 @@ class TransitLinesViewModelTest {
                         repository,
                         SavedStateHandle(),
                         favorites,
-                        com.nghianguyen.gomuni.testing.RecordingErrorLogger(),
+                        RecordingErrorLogger(),
                     ),
                 )
             runCurrent()
@@ -158,6 +166,7 @@ class TransitLinesViewModelTest {
             assertTrue(viewModel.uiState.value.pendingFavoriteIds.isEmpty())
             assertEquals(FavoriteError.WRITE, viewModel.uiState.value.favoriteError)
             favorites.beforeWrite = {}
+            favorites.writeFailure = null
             viewModel.onAction(TransitLinesAction.SetFavorite("38", true))
             runCurrent()
             assertEquals(setOf("38"), viewModel.uiState.value.favoriteIds)
@@ -169,14 +178,14 @@ class TransitLinesViewModelTest {
         runTest(mainDispatcherRule.dispatcher) {
             repository.lines.value = listOf(TransitLine("38", "Geary", "bus"))
             favorites.ids.value = setOf("missing")
-            favorites.readFailure = com.nghianguyen.gomuni.domain.model.FavoritesStorageException()
+            favorites.readFailure = FavoritesError.Storage
             val viewModel =
                 retain(
                     TransitLinesViewModel(
                         repository,
                         SavedStateHandle(),
                         favorites,
-                        com.nghianguyen.gomuni.testing.RecordingErrorLogger(),
+                        RecordingErrorLogger(),
                     ),
                 )
             runCurrent()
@@ -199,7 +208,7 @@ class TransitLinesViewModelTest {
             val writeGate = CompletableDeferred<Unit>()
             favorites.beforeWrite = {
                 writeGate.await()
-                throw com.nghianguyen.gomuni.domain.model.FavoritesStorageException()
+                favorites.writeFailure = FavoritesError.Storage
             }
             val viewModel =
                 retain(
@@ -207,7 +216,7 @@ class TransitLinesViewModelTest {
                         repository,
                         SavedStateHandle(),
                         favorites,
-                        com.nghianguyen.gomuni.testing.RecordingErrorLogger(),
+                        RecordingErrorLogger(),
                     ),
                 )
             runCurrent()
@@ -215,7 +224,7 @@ class TransitLinesViewModelTest {
             runCurrent()
             assertEquals(setOf("38"), viewModel.uiState.value.pendingFavoriteIds)
 
-            favorites.readFailure = com.nghianguyen.gomuni.domain.model.FavoritesStorageException()
+            favorites.readFailure = FavoritesError.Storage
             runCurrent()
             assertFalse(viewModel.uiState.value.favoritesReady)
             assertEquals(FavoriteError.READ, viewModel.uiState.value.favoriteError)
@@ -227,6 +236,7 @@ class TransitLinesViewModelTest {
 
             favorites.readFailure = null
             favorites.beforeWrite = {}
+            favorites.writeFailure = null
             viewModel.onAction(TransitLinesAction.RetryFavorites)
             runCurrent()
             assertTrue(viewModel.uiState.value.favoritesReady)
@@ -239,28 +249,58 @@ class TransitLinesViewModelTest {
     @Test
     fun `initial line load failure retries and successful load ignores further retries`() =
         runTest(mainDispatcherRule.dispatcher) {
-            repository.loadLines = {
-                throw com.nghianguyen.gomuni.domain.model.TransitError.Network
-            }
+            repository.lineLoadFailure = TransitError.Network
             val viewModel =
                 retain(
                     TransitLinesViewModel(
                         repository,
                         SavedStateHandle(),
                         favorites,
-                        com.nghianguyen.gomuni.testing.RecordingErrorLogger(),
+                        RecordingErrorLogger(),
                     ),
                 )
             runCurrent()
             assertEquals(
-                com.nghianguyen.gomuni.features.transit.model.LoadStatus.FAILED,
+                LoadStatus.FAILED,
                 viewModel.uiState.value.status,
             )
-            repository.loadLines = {}
+            repository.lineLoadFailure = null
             viewModel.onAction(TransitLinesAction.RetryLoad)
             runCurrent()
             viewModel.onAction(TransitLinesAction.RetryLoad)
             runCurrent()
             assertEquals(2, repository.lineLoads)
+        }
+
+    @Test
+    fun `failed write confirmation does not disable an active favorites observer`() =
+        runTest(mainDispatcherRule.dispatcher) {
+            repository.lines.value = listOf(TransitLine("38", "Geary", "bus"))
+            val confirmationFailure =
+                object : TransitFavoritesRepository by favorites {
+                    private var observations = 0
+
+                    override fun observeFavoriteIds(): Flow<Outcome<Set<String>, FavoritesError>> {
+                        observations++
+                        return if (observations == 1) favorites.observeFavoriteIds()
+                        else flowOf(Outcome.Failure(FavoritesError.Storage))
+                    }
+                }
+            val viewModel =
+                retain(
+                    TransitLinesViewModel(
+                        repository,
+                        SavedStateHandle(),
+                        confirmationFailure,
+                        RecordingErrorLogger(),
+                    ),
+                )
+            runCurrent()
+            viewModel.onAction(TransitLinesAction.SetFavorite("38", true))
+            runCurrent()
+
+            assertEquals(FavoriteError.WRITE, viewModel.uiState.value.favoriteError)
+            assertTrue(viewModel.uiState.value.favoritesReady)
+            assertTrue(viewModel.uiState.value.pendingFavoriteIds.isEmpty())
         }
 }

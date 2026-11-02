@@ -118,21 +118,10 @@ internal fun TransitLinesPanel(
     ) {
         Column(it) {
             if (uiState.favoriteError != null) {
-                Text(
-                    text =
-                        stringResource(
-                            if (uiState.favoriteError == FavoriteError.READ)
-                                R.string.favorites_read_failed
-                            else R.string.favorites_write_failed,
-                        ),
-                    color = EditorialTheme.colors.electricAlert,
-                    modifier = Modifier.padding(EditorialTheme.spacing.spaceMd),
+                FavoritesErrorContent(
+                    error = uiState.favoriteError,
+                    onRetry = { onAction(TransitLinesAction.RetryFavorites) },
                 )
-                if (uiState.favoriteError == FavoriteError.READ) {
-                    TextButton(onClick = { onAction(TransitLinesAction.RetryFavorites) }) {
-                        Text(stringResource(R.string.retry))
-                    }
-                }
             }
             TransitLineList(
                 lines = uiState.lines,
@@ -150,6 +139,28 @@ internal fun TransitLinesPanel(
                     onAction(TransitLinesAction.SetFavorite(id, favorite))
                 },
             )
+        }
+    }
+}
+
+@Composable
+private fun FavoritesErrorContent(
+    error: FavoriteError,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier) {
+        Text(
+            text =
+                stringResource(
+                    if (error == FavoriteError.READ) R.string.favorites_read_failed
+                    else R.string.favorites_write_failed,
+                ),
+            color = EditorialTheme.colors.electricAlert,
+            modifier = Modifier.padding(EditorialTheme.spacing.spaceMd),
+        )
+        if (error == FavoriteError.READ) {
+            TextButton(onClick = onRetry) { Text(stringResource(R.string.retry)) }
         }
     }
 }

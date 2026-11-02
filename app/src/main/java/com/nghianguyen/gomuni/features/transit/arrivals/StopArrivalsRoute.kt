@@ -18,6 +18,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.unit.Dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -106,8 +107,7 @@ internal fun StopArrivalsRoute(
             listState = listState,
             elapsedMinutes = elapsedMinutes,
             trackingEnabled = trackingEnabled,
-            modifier =
-                Modifier.heightIn(max = androidx.compose.ui.unit.Dp(ARRIVALS_SHEET_MAX_HEIGHT_DP)),
+            modifier = Modifier.heightIn(max = Dp(ARRIVALS_SHEET_MAX_HEIGHT_DP)),
         )
     }
 }
